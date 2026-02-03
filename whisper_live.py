@@ -48,7 +48,7 @@ def main():
     model = whisper.load_model("base")
     
     print("Transcrivint...")
-    result = model.transcribe(temp_filename)
+    result = model.transcribe(temp_filename, fp16=False)
     
     print("-" * 30)
     print("Transcripció en viu:")

@@ -23,10 +23,9 @@ def transcribe_with_info(file_path, model_type="base"):
     detected_lang = max(probs, key=probs.get)
     print(f"Idioma detectat: {detected_lang}")
 
-    # 4. Transcripció completa amb detalls
+    # 4. Transcripció completa amb detalls (fp16=False per evitar warnings a la CPU)
     print(f"Transcrivint...")
-    # options = whisper.DecodingOptions(fp16=False) # Si no tens GPU
-    result = model.transcribe(file_path, verbose=False)
+    result = model.transcribe(file_path, verbose=False, fp16=False)
 
     print("-" * 30)
     print(f"Resultat (Idioma: {result['language']}):")

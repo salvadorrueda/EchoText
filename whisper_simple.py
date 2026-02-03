@@ -11,9 +11,9 @@ def transcribe_audio(file_path):
         print(f"Error: El fitxer {file_path} no existeix.")
         return
     
-    # Transcribe
+    # Transcribe (fp16=False per evitar warnings a la CPU)
     print(f"Transcrivint el fitxer: {file_path}")
-    result = model.transcribe(file_path)
+    result = model.transcribe(file_path, fp16=False)
     
     # Print the result
     print("-" * 30)
