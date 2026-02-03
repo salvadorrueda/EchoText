@@ -7,7 +7,7 @@ set -e
 
 echo "--- Iniciant la instal·lació de dependències de sistema ---"
 sudo apt update
-sudo apt install -y python3-pip python3-venv ffmpeg libportaudio2
+sudo apt install -y python3-pip python3-venv ffmpeg libportaudio2 xclip
 
 echo "--- Creant l'entorn virtual (venv) ---"
 if [ -d "venv" ]; then
@@ -24,7 +24,7 @@ source venv/bin/activate
 pip install --upgrade pip
 
 # Instal·lem les dependències principals
-pip install openai-whisper setuptools-rust sounddevice scipy numpy
+pip install openai-whisper setuptools-rust sounddevice scipy numpy pyperclip
 
 echo ""
 echo "--- INSTAL·LACIÓ FINALITZADA AMB ÈXIT ---"

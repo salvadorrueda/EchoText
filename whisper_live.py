@@ -4,6 +4,7 @@ import numpy as np
 import scipy.io.wavfile as wav
 import os
 import threading
+import pyperclip
 
 def record_audio(fs=16000):
     print("\nPrem 'ENTER' per començar a enregistrar...")
@@ -52,8 +53,17 @@ def main():
     
     print("-" * 30)
     print("Transcripció en viu:")
-    print(result["text"])
+    text = result["text"].strip()
+    print(text)
     print("-" * 30)
+    
+    # Copiar al porta-retalls
+    try:
+        pyperclip.copy(text)
+        print("✓ Text copiat al porta-retalls! Ja pots fer Ctrl+V.")
+    except Exception as e:
+        print(f"No s'ha pogut copiar al porta-retalls: {e}")
+        print("Assegura't que tens 'xclip' instal·lat (sudo apt install xclip)")
     
     # Netejar fitxer temporal
     if os.path.exists(temp_filename):
