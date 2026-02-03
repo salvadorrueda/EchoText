@@ -3,9 +3,13 @@ import os
 
 def transcribe_audio(file_path):
     # Load the base model (you can also use 'tiny', 'small', 'medium', 'large')
-    print("Carregant el model Whisper (base)...")
-    model = whisper.load_model("base")
     
+    #print("Carregant el model Whisper (base)...")
+    #model = whisper.load_model("base")
+
+    print("Carregant el model Whisper (turbo)...")
+    model = whisper.load_model("turbo",device="cuda")
+
     # Check if file exists
     if not os.path.exists(file_path):
         print(f"Error: El fitxer {file_path} no existeix.")
