@@ -1,0 +1,63 @@
+import whisper
+import sounddevice as sd
+import numpy as np
+import scipy.io.wavfile as wav
+import os
+import threading
+
+def record_audio(fs=16000):
+    print("\nPrem 'ENTER' per començar a enregistrar...")
+    input()
+    
+    print("Enregistrant... Prem 'ENTER' per aturar.")
+    
+    recording = []
+    stop_event = threading.Event()
+
+    def callback(indata, frames, time, status):
+        if status:
+            print(status)
+        recording.append(indata.copy())
+
+    # Iniciar la gravació en un stream
+    with sd.InputStream(samplerate=fs, channels=1, callback=callback):
+        input() # Espera a que l'usuari premi Enter de nou
+        stop_event.set()
+
+    print("Enregistrament finalitzat.")
+    
+    # Convertir la llista de chunks a un array de numpy
+    audio_data = np.concatenate(recording, axis=0)
+    return audio_data
+
+def main():
+    fs = 16000  # Whisper prefereix 16kHz
+    temp_filename = "live_audio.wav"
+    
+    # 1. Enregistrar
+    try:
+        audio_data = record_audio(fs)
+        wav.write(temp_filename, fs, audio_data)
+    except Exception as e:
+        print(f"Error enregistrant àudio: {e}")
+        print("Assegura't que tens un micròfon connectat i els drivers instal·lats (ex: libportaudio2).")
+        return
+
+    # 2. Transcriure
+    print("Carregant el model Whisper...")
+    model = whisper.load_model("base")
+    
+    print("Transcrivint...")
+    result = model.transcribe(temp_filename)
+    
+    print("-" * 30)
+    print("Transcripció en viu:")
+    print(result["text"])
+    print("-" * 30)
+    
+    # Netejar fitxer temporal
+    if os.path.exists(temp_filename):
+        os.remove(temp_filename)
+
+if __name__ == "__main__":
+    main()
