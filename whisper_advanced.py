@@ -1,7 +1,7 @@
 import whisper
 import os
 
-def transcribe_with_info(file_path, model_type="base"):
+def transcribe_with_info(file_path, model_type="turbo"):
     # Carregar model
     print(f"Carregant el model Whisper ({model_type})...")
     model = whisper.load_model(model_type)
@@ -45,4 +45,4 @@ if __name__ == "__main__":
         print(f"Si us plau, posa un fitxer d'àudio anomenat '{audio_file}'")
     else:
         # Pots provar models com 'tiny', 'base', 'small', 'medium', 'large'
-        transcribe_with_info(audio_file, model_type="base")
+        transcribe_with_info(audio_file, model_type="turbo")

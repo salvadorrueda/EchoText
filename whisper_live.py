@@ -46,7 +46,7 @@ def main():
 
     # 2. Transcriure
     print("Carregant el model Whisper...")
-    model = whisper.load_model("base")
+    model = whisper.load_model("turbo")
     
     print("Transcrivint...")
     result = model.transcribe(temp_filename, fp16=False)
