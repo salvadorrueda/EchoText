@@ -4,7 +4,9 @@ import numpy as np
 import scipy.io.wavfile as wav
 import os
 import threading
+import time
 import pyperclip
+import torch
 
 def record_audio(fs=16000):
     print("\nPrem 'ENTER' per començar a enregistrar...")
@@ -40,8 +42,13 @@ def main():
     
     def load_model_thread():
         print("Carregant el model Whisper (turbo) en segon pla...")
-        model_container['model'] = whisper.load_model("turbo")
-        print("Model Whisper carregat.")
+        start_load = time.time()
+        model = whisper.load_model("turbo")
+        end_load = time.time()
+        model_container['model'] = model
+        device = next(model.parameters()).device
+        print(f"Model Whisper (turbo) carregat correctament en {end_load - start_load:.2f}s.")
+        print(f"Dispositiu utilitzat: {device}")
 
     loader_thread = threading.Thread(target=load_model_thread)
     loader_thread.start()
@@ -66,10 +73,12 @@ def main():
 
             # 3. Transcriure
             print("Transcrivint...")
+            start_transcription = time.time()
             result = model.transcribe(temp_filename, fp16=False)
+            end_transcription = time.time()
             
             print("-" * 30)
-            print("Transcripció en viu:")
+            print(f"Transcripció en viu ({end_transcription - start_transcription:.2f}s):")
             text = result["text"].strip()
             print(text)
             print("-" * 30)
