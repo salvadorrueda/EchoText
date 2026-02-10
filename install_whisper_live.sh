@@ -12,13 +12,13 @@ BIN_DIR="$HOME/.local/bin"
 echo "--- Installing EchoText (Whisper Live) ---"
 
 # 1. Install System Dependencies
-echo "[1/5] Checking and installing system dependencies..."
-if command -v apt-get >/dev/null; then
-    sudo apt-get update -qq
-    sudo apt-get install -y -qq ffmpeg libportaudio2 python3-venv xclip git
-else
-    echo "Warning: apt-get not found. Please ensure 'ffmpeg', 'libportaudio2', 'python3-venv', 'xclip', and 'git' are installed manually."
-fi
+#echo "[1/5] Checking and installing system dependencies..."
+#if command -v apt-get >/dev/null; then
+#    sudo apt-get update -qq
+#    sudo apt-get install -y -qq ffmpeg libportaudio2 python3-venv xclip git
+#else
+#    echo "Warning: apt-get not found. Please ensure 'ffmpeg', 'libportaudio2', 'python3-venv', 'xclip', and 'git' are installed manually."
+#fi
 
 # 2. Clone or Update Repository
 echo "[2/5] Cloning repository to $INSTALL_DIR..."
