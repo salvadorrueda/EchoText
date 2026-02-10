@@ -35,7 +35,18 @@ def main():
     fs = 16000  # Whisper prefereix 16kHz
     temp_filename = "live_audio.wav"
     
-    # 1. Enregistrar
+    # 1. Carregar el model Whisper en paral·lel
+    model_container = {} # Per guardar el model carregat pel thread
+    
+    def load_model_thread():
+        print("Carregant el model Whisper (turbo) en segon pla...")
+        model_container['model'] = whisper.load_model("turbo")
+        print("Model Whisper carregat.")
+
+    loader_thread = threading.Thread(target=load_model_thread)
+    loader_thread.start()
+
+    # 2. Enregistrar (mentre el model es carrega)
     try:
         audio_data = record_audio(fs)
         wav.write(temp_filename, fs, audio_data)
@@ -44,12 +55,17 @@ def main():
         print("Assegura't que tens un micròfon connectat i els drivers instal·lats (ex: libportaudio2).")
         return
 
-    # 2. Transcriure
-    print("Carregant el model Whisper...")
-    model = whisper.load_model("turbo")
+    # Esperar que el model acabi de carregar si encara no ho ha fet
+    if loader_thread.is_alive():
+        print("Esperant que el model acabi de carregar...")
+        loader_thread.join()
     
+    model = model_container['model']
+
+    # 3. Transcriure
     print("Transcrivint...")
     result = model.transcribe(temp_filename, fp16=False)
+
     
     print("-" * 30)
     print("Transcripció en viu:")
