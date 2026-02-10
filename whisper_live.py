@@ -46,44 +46,56 @@ def main():
     loader_thread = threading.Thread(target=load_model_thread)
     loader_thread.start()
 
-    # 2. Enregistrar (mentre el model es carrega)
     try:
-        audio_data = record_audio(fs)
-        wav.write(temp_filename, fs, audio_data)
-    except Exception as e:
-        print(f"Error enregistrant àudio: {e}")
-        print("Assegura't que tens un micròfon connectat i els drivers instal·lats (ex: libportaudio2).")
-        return
+        while True:
+            # 2. Enregistrar (mentre el model es carrega en la primera iteració)
+            try:
+                audio_data = record_audio(fs)
+                wav.write(temp_filename, fs, audio_data)
+            except Exception as e:
+                print(f"Error enregistrant àudio: {e}")
+                print("Assegura't que tens un micròfon connectat i els drivers instal·lats (ex: libportaudio2).")
+                break
 
-    # Esperar que el model acabi de carregar si encara no ho ha fet
-    if loader_thread.is_alive():
-        print("Esperant que el model acabi de carregar...")
-        loader_thread.join()
-    
-    model = model_container['model']
+            # Esperar que el model acabi de carregar si encara no ho ha fet (només la primera vegada)
+            if loader_thread.is_alive():
+                print("Esperant que el model acabi de carregar...")
+                loader_thread.join()
+            
+            model = model_container['model']
 
-    # 3. Transcriure
-    print("Transcrivint...")
-    result = model.transcribe(temp_filename, fp16=False)
+            # 3. Transcriure
+            print("Transcrivint...")
+            result = model.transcribe(temp_filename, fp16=False)
+            
+            print("-" * 30)
+            print("Transcripció en viu:")
+            text = result["text"].strip()
+            print(text)
+            print("-" * 30)
+            
+            # Copiar al porta-retalls
+            try:
+                pyperclip.copy(text)
+                print("✓ Text copiat al porta-retalls! Ja pots fer Ctrl+V.")
+            except Exception as e:
+                print(f"No s'ha pogut copiar al porta-retalls: {e}")
+            
+            # Netejar fitxer temporal de l'iteració actual
+            if os.path.exists(temp_filename):
+                os.remove(temp_filename)
+                
+            print("\n" + "="*30)
+            print("Llest per a una nova gravació.")
+            print("="*30 + "\n")
 
-    
-    print("-" * 30)
-    print("Transcripció en viu:")
-    text = result["text"].strip()
-    print(text)
-    print("-" * 30)
-    
-    # Copiar al porta-retalls
-    try:
-        pyperclip.copy(text)
-        print("✓ Text copiat al porta-retalls! Ja pots fer Ctrl+V.")
-    except Exception as e:
-        print(f"No s'ha pogut copiar al porta-retalls: {e}")
-        print("Assegura't que tens 'xclip' instal·lat (sudo apt install xclip)")
-    
-    # Netejar fitxer temporal
-    if os.path.exists(temp_filename):
-        os.remove(temp_filename)
+    except KeyboardInterrupt:
+        print("\nAturant l'escrit...")
+    finally:
+        # Netejar fitxer temporal si ha quedat
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
 
 if __name__ == "__main__":
     main()
+
