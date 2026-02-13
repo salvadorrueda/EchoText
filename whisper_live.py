@@ -1,3 +1,20 @@
+#!/usr/bin/env python3
+import os
+import sys
+
+# Auto-activació del venv si no està actiu
+def activate_venv():
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    venv_path = os.path.join(script_dir, "venv")
+    
+    # Si no estem en un venv i el venv local existeix
+    if sys.prefix == sys.base_prefix and os.path.isdir(venv_path):
+        python_exe = os.path.join(venv_path, "bin", "python3")
+        if os.path.isfile(python_exe):
+            os.execv(python_exe, [python_exe] + sys.argv)
+
+activate_venv()
+
 import whisper
 import sounddevice as sd
 import numpy as np
