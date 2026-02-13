@@ -26,8 +26,8 @@ import pyperclip
 import torch
 import queue
 
-def record_and_transcribe(model, fs=16000, chunk_duration=5):
-    print("\nPrem 'ENTER' per començar a enregistrar...")
+def record_and_transcribe(model_container, loader_thread, fs=16000, chunk_duration=5):
+    print("\nPrem 'ENTER' per començar a enregistrar (el model es carrega en segon pla)...")
     input()
     print(f"Enregistrant... Transcripció cada {chunk_duration}s. Prem 'ENTER' per aturar.")
 
@@ -39,7 +39,6 @@ def record_and_transcribe(model, fs=16000, chunk_duration=5):
             print(status)
         q.put(indata.copy())
 
-    # Thread per esperar l'input d'aturada sense bloquejar el principal
     def input_listener():
         input()
         stop_event.set()
@@ -50,33 +49,35 @@ def record_and_transcribe(model, fs=16000, chunk_duration=5):
     audio_buffer = []
     full_transcription = []
     temp_filename = "temp_live_chunk.wav"
-    last_transcription_time = time.time()
+    
+    #Funció auxiliar per obtenir el model
+    def get_model():
+        if 'model' not in model_container:
+            print("\nEsperant que el model acabi de carregar...")
+            loader_thread.join()
+        return model_container['model']
 
     try:
         with sd.InputStream(samplerate=fs, channels=1, callback=callback):
             while not stop_event.is_set():
                 try:
-                    # Obtenim dades de la cua (sense bloquejar massa temps)
                     data = q.get(timeout=0.1)
                     audio_buffer.append(data)
                 except queue.Empty:
                     continue
 
-                # Comprovem si tenim prou àudio (aprox 5 segons)
-                # Calculem mostres totals acumulades
                 total_samples = sum(len(c) for c in audio_buffer)
                 
                 if total_samples >= fs * chunk_duration:
-                    # Processem el chunk
-                    print(".", end="", flush=True) # Feedback visual
+                    print(".", end="", flush=True)
                     
                     np_audio = np.concatenate(audio_buffer, axis=0)
-                    audio_buffer = [] # Reset del buffer per al següent chunk
+                    audio_buffer = []
                     
                     wav.write(temp_filename, fs, np_audio)
                     
-                    # Transcripció ràpida
-                    # Utilitzem condition_on_previous_text=False per evitar al·lucinacions en chunks curts
+                    model = get_model() # Assegurar que tenim model
+                    
                     result = model.transcribe(temp_filename, fp16=False, language="ca", condition_on_previous_text=False)
                     text = result["text"].strip()
                     
@@ -84,18 +85,19 @@ def record_and_transcribe(model, fs=16000, chunk_duration=5):
                         print(f"\n[Chunk]: {text}")
                         full_transcription.append(text)
                         
-                        # Actualitzem el clipboard amb tot el text fins ara
                         current_full_text = " ".join(full_transcription)
                         try:
                             pyperclip.copy(current_full_text)
                         except:
                             pass
 
-            # En sortir bucle (stop_event), processem el romanent
             if audio_buffer:
                 print("\nProcessant l'últim fragment...")
                 np_audio = np.concatenate(audio_buffer, axis=0)
                 wav.write(temp_filename, fs, np_audio)
+                
+                model = get_model() # Assegurar que tenim model
+                
                 result = model.transcribe(temp_filename, fp16=False, language="ca", condition_on_previous_text=False)
                 text = result["text"].strip()
                 if text:
@@ -107,20 +109,58 @@ def record_and_transcribe(model, fs=16000, chunk_duration=5):
     finally:
         if os.path.exists(temp_filename):
             os.remove(temp_filename)
-        # Assegurar que el thread d'input acaba (potser cal prémer Enter si ha fallat abans)
         if input_thread.is_alive():
             print("Prem ENTER per tancar el programa si s'ha quedat esperant.")
 
     return " ".join(full_transcription)
 
 def main():
-    # 1. Carregar el model Whisper
-    print("Carregant el model Whisper (turbo)...")
-    model = whisper.load_model("turbo")
-    print("Model carregat.")
+    # 1. Carregar el model Whisper en paral·lel
+    model_container = {} 
+    
+    def load_model_thread():
+        print("Carregant el model Whisper (turbo) en segon pla...")
+        start_load = time.time()
+        
+        try:
+            # Intentar netejar la memòria cau de CUDA abans
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            
+            model = whisper.load_model("turbo")
+            end_load = time.time()
+            model_container['model'] = model
+            print(f"\nModel Whisper (turbo) carregat correctament en {end_load - start_load:.2f}s.")
+            
+        except RuntimeError as e:
+            if "out of memory" in str(e):
+                print("\nALERTA: Memòria CUDA insuficient per al model 'turbo'. Intentant amb 'small'...")
+                try:
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                    model = whisper.load_model("small")
+                    model_container['model'] = model
+                    print("\nModel Whisper (small) carregat correctament com a alternativa.")
+                except Exception as e2:
+                    print(f"\nError fatal carregant el model alternatiu: {e2}")
+                    model_container['error'] = str(e2)
+            else:
+                print(f"\nError carregant el model: {e}")
+                model_container['error'] = str(e)
+        except Exception as e:
+             print(f"\nError inesperat carregant el model: {e}")
+             model_container['error'] = str(e)
+
+    loader_thread = threading.Thread(target=load_model_thread)
+    loader_thread.start()
 
     while True:
-        final_text = record_and_transcribe(model)
+        # Check d'errors abans de començar
+        if 'error' in model_container:
+            print("\nNo s'ha pogut carregar cap model. Tancant...")
+            break
+            
+        final_text = record_and_transcribe(model_container, loader_thread)
         
         print("\n" + "="*30)
         print("Transcripció Final:")
