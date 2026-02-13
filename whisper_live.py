@@ -24,104 +24,120 @@ import threading
 import time
 import pyperclip
 import torch
+import queue
 
-def record_audio(fs=16000):
+def record_and_transcribe(model, fs=16000, chunk_duration=5):
     print("\nPrem 'ENTER' per començar a enregistrar...")
     input()
-    
-    print("Enregistrant... Prem 'ENTER' per aturar.")
-    
-    recording = []
-    stop_event = threading.Event()
+    print(f"Enregistrant... Transcripció cada {chunk_duration}s. Prem 'ENTER' per aturar.")
 
+    q = queue.Queue()
+    stop_event = threading.Event()
+    
     def callback(indata, frames, time, status):
         if status:
             print(status)
-        recording.append(indata.copy())
+        q.put(indata.copy())
 
-    # Iniciar la gravació en un stream
-    with sd.InputStream(samplerate=fs, channels=1, callback=callback):
-        input() # Espera a que l'usuari premi Enter de nou
+    # Thread per esperar l'input d'aturada sense bloquejar el principal
+    def input_listener():
+        input()
         stop_event.set()
 
-    print("Enregistrament finalitzat.")
-    
-    # Convertir la llista de chunks a un array de numpy
-    audio_data = np.concatenate(recording, axis=0)
-    return audio_data
+    input_thread = threading.Thread(target=input_listener)
+    input_thread.start()
 
-def main():
-    fs = 16000  # Whisper prefereix 16kHz
-    temp_filename = "live_audio.wav"
-    
-    # 1. Carregar el model Whisper en paral·lel
-    model_container = {} # Per guardar el model carregat pel thread
-    
-    def load_model_thread():
-        print("Carregant el model Whisper (turbo) en segon pla...")
-        start_load = time.time()
-        model = whisper.load_model("turbo")
-        end_load = time.time()
-        model_container['model'] = model
-        device = next(model.parameters()).device
-        print(f"Model Whisper (turbo) carregat correctament en {end_load - start_load:.2f}s.")
-        print(f"Dispositiu utilitzat: {device}")
-
-    loader_thread = threading.Thread(target=load_model_thread)
-    loader_thread.start()
+    audio_buffer = []
+    full_transcription = []
+    temp_filename = "temp_live_chunk.wav"
+    last_transcription_time = time.time()
 
     try:
-        while True:
-            # 2. Enregistrar (mentre el model es carrega en la primera iteració)
-            try:
-                audio_data = record_audio(fs)
-                wav.write(temp_filename, fs, audio_data)
-            except Exception as e:
-                print(f"Error enregistrant àudio: {e}")
-                print("Assegura't que tens un micròfon connectat i els drivers instal·lats (ex: libportaudio2).")
-                break
+        with sd.InputStream(samplerate=fs, channels=1, callback=callback):
+            while not stop_event.is_set():
+                try:
+                    # Obtenim dades de la cua (sense bloquejar massa temps)
+                    data = q.get(timeout=0.1)
+                    audio_buffer.append(data)
+                except queue.Empty:
+                    continue
 
-            # Esperar que el model acabi de carregar si encara no ho ha fet (només la primera vegada)
-            if loader_thread.is_alive():
-                print("Esperant que el model acabi de carregar...")
-                loader_thread.join()
-            
-            model = model_container['model']
-
-            # 3. Transcriure
-            print("Transcrivint...")
-            start_transcription = time.time()
-            result = model.transcribe(temp_filename, fp16=False)
-            end_transcription = time.time()
-            
-            print("-" * 30)
-            print(f"Transcripció en viu ({end_transcription - start_transcription:.2f}s):")
-            text = result["text"].strip()
-            print(text)
-            print("-" * 30)
-            
-            # Copiar al porta-retalls
-            try:
-                pyperclip.copy(text)
-                print("✓ Text copiat al porta-retalls! Ja pots fer Ctrl+V.")
-            except Exception as e:
-                print(f"No s'ha pogut copiar al porta-retalls: {e}")
-            
-            # Netejar fitxer temporal de l'iteració actual
-            if os.path.exists(temp_filename):
-                os.remove(temp_filename)
+                # Comprovem si tenim prou àudio (aprox 5 segons)
+                # Calculem mostres totals acumulades
+                total_samples = sum(len(c) for c in audio_buffer)
                 
-            print("\n" + "="*30)
-            print("Llest per a una nova gravació.")
-            print("="*30 + "\n")
+                if total_samples >= fs * chunk_duration:
+                    # Processem el chunk
+                    print(".", end="", flush=True) # Feedback visual
+                    
+                    np_audio = np.concatenate(audio_buffer, axis=0)
+                    audio_buffer = [] # Reset del buffer per al següent chunk
+                    
+                    wav.write(temp_filename, fs, np_audio)
+                    
+                    # Transcripció ràpida
+                    # Utilitzem condition_on_previous_text=False per evitar al·lucinacions en chunks curts
+                    result = model.transcribe(temp_filename, fp16=False, language="ca", condition_on_previous_text=False)
+                    text = result["text"].strip()
+                    
+                    if text:
+                        print(f"\n[Chunk]: {text}")
+                        full_transcription.append(text)
+                        
+                        # Actualitzem el clipboard amb tot el text fins ara
+                        current_full_text = " ".join(full_transcription)
+                        try:
+                            pyperclip.copy(current_full_text)
+                        except:
+                            pass
 
-    except KeyboardInterrupt:
-        print("\nAturant l'escrit...")
+            # En sortir bucle (stop_event), processem el romanent
+            if audio_buffer:
+                print("\nProcessant l'últim fragment...")
+                np_audio = np.concatenate(audio_buffer, axis=0)
+                wav.write(temp_filename, fs, np_audio)
+                result = model.transcribe(temp_filename, fp16=False, language="ca", condition_on_previous_text=False)
+                text = result["text"].strip()
+                if text:
+                    print(f"[Final]: {text}")
+                    full_transcription.append(text)
+
+    except Exception as e:
+        print(f"\nError durant l'enregistrament: {e}")
     finally:
-        # Netejar fitxer temporal si ha quedat
         if os.path.exists(temp_filename):
             os.remove(temp_filename)
+        # Assegurar que el thread d'input acaba (potser cal prémer Enter si ha fallat abans)
+        if input_thread.is_alive():
+            print("Prem ENTER per tancar el programa si s'ha quedat esperant.")
+
+    return " ".join(full_transcription)
+
+def main():
+    # 1. Carregar el model Whisper
+    print("Carregant el model Whisper (turbo)...")
+    model = whisper.load_model("turbo")
+    print("Model carregat.")
+
+    while True:
+        final_text = record_and_transcribe(model)
+        
+        print("\n" + "="*30)
+        print("Transcripció Final:")
+        print(final_text)
+        print("="*30)
+        
+        try:
+            pyperclip.copy(final_text)
+            print("✓ Text final copiat al porta-retalls!")
+        except:
+            pass
+        
+        print("\nVols fer una altra gravació? (Prem Ctrl+C per sortir, o Enter per continuar)")
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\nPrograma aturat per l'usuari. Fins aviat!")
 
