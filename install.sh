@@ -29,7 +29,7 @@ fi
 echo "--- [3/5] Instal·lant paquets de Python dins del venv ---"
 source venv/bin/activate
 pip install --upgrade pip
-pip install openai-whisper setuptools-rust sounddevice scipy numpy pyperclip
+pip install openai-whisper setuptools-rust sounddevice scipy numpy pyperclip flask requests
 
 echo "--- [4/5] Configurant el comando global 'echotext' ---"
 mkdir -p "$BIN_DIR"
