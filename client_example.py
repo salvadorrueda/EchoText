@@ -1,15 +1,6 @@
 #!/usr/bin/env python3
-import requests
 import sys
 import os
-import threading
-import queue
-import sounddevice as sd
-import numpy as np
-import scipy.io.wavfile as wav
-import tempfile
-
-# Auto-activació de l'entorn virtual (venv) si existeix i no està actiu
 
 # Auto-activació de l'entorn virtual (venv) si existeix i no està actiu
 def activate_venv():
@@ -17,14 +8,25 @@ def activate_venv():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     venv_python = os.path.join(base_dir, "venv", "bin", "python3")
     
-    if os.path.exists(venv_python) and sys.executable != venv_python:
-        # print(f"Activant entorn virtual: {venv_python}")
+    # Si no estem en un venv (sys.prefix == sys.base_prefix) i el venv local existeix
+    if sys.prefix == sys.base_prefix and os.path.exists(venv_python):
+        # Reiniciar-se amb l'executable del venv
         os.execv(venv_python, [venv_python] + sys.argv)
 
 if __name__ == "__main__":
     # Només ho executem si és el punt d'entrada
     if "client_example.py" in sys.argv[0] or "./client_example.py" in sys.argv[0]:
         activate_venv()
+
+# Importacions que requereixen el venv
+import requests
+import threading
+import queue
+import sounddevice as sd
+import numpy as np
+import scipy.io.wavfile as wav
+import tempfile
+import pyperclip
 
 
 def record_audio(fs=16000):
@@ -93,9 +95,17 @@ def transcribe_file(filepath, server_url="http://localhost:5000/transcribe"):
             
         if response.status_code == 200:
             result = response.json()
+            text = result.get('text', '').strip()
             print("\n--- Transcripció ---")
-            print(result.get('text', 'No text returned'))
+            print(text if text else 'No text returned')
             print("--------------------\n")
+            
+            if text:
+                try:
+                    pyperclip.copy(text)
+                    print("✓ Text copiat al porta-retalls!")
+                except Exception as cp_err:
+                    print(f"Avís: No s'ha pogut copiar al porta-retalls: {cp_err}")
         else:
             print(f"Error del servidor ({response.status_code}):")
             print(response.text)
