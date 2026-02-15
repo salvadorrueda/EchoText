@@ -158,7 +158,10 @@ if __name__ == "__main__":
         # Si només hi ha un paràmetre i no és un fitxer, assumim que és la IP del servidor
         server = sys.argv[1]
         
-    url = f"http://{server}:5000/transcribe"
+    if ":" in server:
+         url = f"http://{server}/transcribe"
+    else:
+         url = f"http://{server}:5000/transcribe"
 
     if len(sys.argv) >= 2 and os.path.exists(sys.argv[1]):
         audio_file = sys.argv[1]
