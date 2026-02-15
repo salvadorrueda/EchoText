@@ -39,11 +39,35 @@ Enregistra àudio directament des del micròfon i el transcriu quan prems la tec
 python3 whisper_live.py
 ```
 
+## 🐳 Docker
+
+També pots executar el servidor d'API utilitzant **Docker**. Això és útil si no vols instal·lar dependències localment o per desplegar el servidor en altres màquines.
+
+### 1. Construir la imatge
+```bash
+docker build -t echotext-server .
+```
+
+### 2. Executar el container
+```bash
+docker run -p 5000:5000 echotext-server
+```
+
+### 3. Execució amb GPU (NVIDIA)
+Si tens una GPU NVIDIA i vols aprofitar l'acceleració per hardware dins de Docker, necessites tenir instal·lat el [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
+
+Per defecte, el `Dockerfile` actual usa una imatge "slim" basada en CPU. Per usar GPU:
+1. Canvia la base del `Dockerfile` a una amb CUDA (ex: `nvidia/cuda:11.8.0-base-ubuntu22.04`).
+2. Executa el container amb el flag `--gpus`:
+```bash
+docker run --gpus all -p 5000:5000 echotext-server
+```
+
 ## 📋 Requisits del sistema
 Els scripts estan provats en **Ubuntu Desktop** i requereixen:
 - Python 3.x
-- FFmpeg (per processar l'àudio)
-- PortAudio (per a l'enregistrament en viu)
+- **FFmpeg** (per processar l'àudio) - *Ja inclòs a la imatge Docker.*
+- **PortAudio** (per a l'enregistrament en viu)
 
 ---
 *Creat com a part del projecte EchoText.*
