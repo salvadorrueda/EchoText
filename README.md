@@ -62,6 +62,22 @@ Per defecte, el `Dockerfile` actual usa una imatge "slim" basada en CPU. Per usa
 ```bash
 docker run --gpus all -p 5000:5000 echotext-server
 ```
+### 4. Persistència del Model (Optimització)
+Per evitar que Docker hagi de descarregar els 1.5 GB del model cada vegada que s'inicia el container, pots utilitzar un **volum**.
+
+#### Opció A: Script d'ajuda (Recomanat)
+He creat un script que gestiona automàticament el volum i l'execució:
+```bash
+chmod +x start_docker_server.sh
+./start_docker_server.sh
+```
+
+#### Opció B: Manualment amb Docker
+Pots crear un volum i muntar-lo a la carpeta de memòria cau de Whisper (`/root/.cache/whisper`):
+```bash
+docker volume create whisper-models
+docker run --gpus all -p 5000:5000 -v whisper-models:/root/.cache/whisper echotext-server
+```
 
 ## 📋 Requisits del sistema
 Els scripts estan provats en **Ubuntu Desktop** i requereixen:
