@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta content="initial-scale=1, minimum-scale=1, width=device-width" name="viewport">
+  <meta content="Web Speech API Demonstration" name="description">
+  <title>Web Speech API Demo</title>
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700&amp;subset=latin" rel="stylesheet">
+  <style>
+    :root {
+      --primary-color: #4285f4;
+      --error-color: #ea4335;
+      --bg-color: #ffffff;
+      --text-color: #333;
+      --border-color: #ddd;
+    }
+
+    body {
+      font-family: 'Open Sans', sans-serif;
+      color: var(--text-color);
+      background-color: var(--bg-color);
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    #main {
+      max-width: 800px;
+      width: 100%;
+    }
+
+    h1 {
+      text-align: center;
+      color: var(--text-color);
+      margin-bottom: 40px;
+    }
+
+    h1 a {
+      color: var(--primary-color);
+      text-decoration: none;
+    }
+
+    #info {
+      font-size: 18px;
+      text-align: center;
+      margin-bottom: 30px;
+      min-height: 1.5em;
+      color: #666;
+    }
+
+    #results {
+      font-size: 16px;
+      border: 1px solid var(--border-color);
+      padding: 20px;
+      text-align: left;
+      min-height: 200px;
+      background: #f9f9f9;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      margin-bottom: 30px;
+    }
+
+    .interim {
+      color: #999;
+      font-style: italic;
+    }
+
+    .final {
+      color: #000;
+      font-weight: 500;
+    }
+
+    #div_start {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
+
+    #start_button {
+      border: none;
+      background-color: transparent;
+      padding: 0;
+      cursor: pointer;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s, background-color 0.3s;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    #start_button:hover {
+      transform: scale(1.05);
+    }
+
+    #start_button:active {
+      transform: scale(0.95);
+    }
+
+    .mic-icon {
+      width: 40px;
+      height: 40px;
+      fill: #666;
+      transition: fill 0.3s;
+    }
+
+    .recognizing .mic-icon {
+      fill: var(--error-color);
+    }
+
+    .recognizing#start_button {
+      animation: pulse 1.5s infinite;
+      background-color: rgba(234, 67, 53, 0.1);
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(234, 67, 53, 0.4);
+      }
+
+      70% {
+        box-shadow: 0 0 0 20px rgba(234, 67, 53, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(234, 67, 53, 0);
+      }
+    }
+
+    #buttons {
+      margin: 20px 0;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .button {
+      background-color: #f1f3f4;
+      border: 1px solid #dfe1e5;
+      color: #3c4043;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.2s;
+    }
+
+    .button:hover {
+      background-color: #e8eaed;
+    }
+
+    #div_language {
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    select {
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+      font-family: inherit;
+    }
+
+    #copy_info,
+    #email_info {
+      display: none;
+      margin: 10px 0;
+      color: #666;
+      font-size: 14px;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="main">
+    <h1>
+      <a href="https://webaudio.github.io/web-speech-api/">Web Speech API</a> Demonstration
+    </h1>
+
+    <div id="info">
+      <span id="info_start">Click on the microphone icon and begin speaking.</span>
+      <span id="info_speak_now" style="display:none">Speak now...</span>
+      <span id="info_no_speech" style="display:none">No speech was detected.</span>
+      <span id="info_no_microphone" style="display:none">No microphone was found.</span>
+      <span id="info_allow" style="display:none">Please allow microphone access.</span>
+      <span id="info_denied" style="display:none">Permission to use microphone was denied.</span>
+      <span id="info_blocked" style="display:none">Permission to use microphone is blocked.</span>
+      <span id="info_upgrade" style="display:none">Web Speech API is not supported by this browser.</span>
+    </div>
+
+    <div id="div_start">
+      <button id="start_button" onclick="startButton(event)">
+        <svg class="mic-icon" id="mic_svg" viewBox="0 0 24 24">
+          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+          <path
+            d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+        </svg>
+      </button>
+    </div>
+
+    <div id="results">
+      <span class="final" id="final_span"></span>
+      <span class="interim" id="interim_span"></span>
+    </div>
+
+
+    <div id="div_language">
+      <select id="select_language" onchange="updateCountry()"></select>
+      <select id="select_dialect"></select>
+    </div>
+  </div>
+
+  <script>
+    var langs = [
+      ['Afrikaans', ['af-ZA']],
+      ['Català', ['ca-ES']],
+      ['Dansk', ['da-DK']],
+      ['Deutsch', ['de-DE']],
+      ['English', ['en-AU', 'Australia'], ['en-CA', 'Canada'], ['en-IN', 'India'], ['en-NZ', 'New Zealand'], ['en-ZA', 'South Africa'], ['en-GB', 'United Kingdom'], ['en-US', 'United States']],
+      ['Español', ['es-AR', 'Argentina'], ['es-BO', 'Bolivia'], ['es-CL', 'Chile'], ['es-CO', 'Colombia'], ['es-CR', 'Costa Rica'], ['es-EC', 'Ecuador'], ['es-SV', 'El Salvador'], ['es-ES', 'España'], ['es-US', 'Estados Unidos'], ['es-GT', 'Guatemala'], ['es-HN', 'Honduras'], ['es-MX', 'México'], ['es-NI', 'Nicaragua'], ['es-PA', 'Panamá'], ['es-PY', 'Paraguay'], ['es-PE', 'Perú'], ['es-PR', 'Puerto Rico'], ['es-DO', 'República Dominicana'], ['es-UY', 'Uruguay'], ['es-VE', 'Venezuela']],
+      ['Euskara', ['eu-ES']],
+      ['Français', ['fr-FR']],
+      ['Galego', ['gl-ES']],
+      ['Italiano', ['it-IT', 'Italia'], ['it-CH', 'Svizzera']],
+      ['Nederlands', ['nl-NL']],
+      ['Norsk bokmål', ['nb-NO']],
+      ['Polski', ['pl-PL']],
+      ['Português', ['pt-BR', 'Brasil'], ['pt-PT', 'Portugal']],
+      ['Română', ['ro-RO']],
+      ['Svenska', ['sv-SE']],
+      ['Türkçe', ['tr-TR']],
+      ['Русский', ['ru-RU']],
+      ['한국어', ['ko-KR']],
+      ['中文', ['cmn-Hans-CN', '普通话 (中国大陆)'], ['cmn-Hans-HK', '普通话 (香港)'], ['cmn-Hant-TW', '中文 (台灣)'], ['yue-Hant-HK', '粵語 (香港)']],
+      ['日本語', ['ja-JP']]
+    ];
+
+    for (var i = 0; i < langs.length; i++) {
+      select_language.options[i] = new Option(langs[i][0], i);
+    }
+    select_language.selectedIndex = 1; // Catalan default
+    updateCountry();
+    select_dialect.selectedIndex = 0;
+    showInfo('info_start');
+
+    function updateCountry() {
+      for (var i = select_dialect.options.length - 1; i >= 0; i--) {
+        select_dialect.remove(i);
+      }
+      var list = langs[select_language.selectedIndex];
+      for (var i = 1; i < list.length; i++) {
+        select_dialect.options.add(new Option(list[i][1], list[i][0]));
+      }
+      select_dialect.style.visibility = list[1].length == 1 ? 'hidden' : 'visible';
+    }
+
+    var final_transcript = '';
+    var recognizing = false;
+    var ignore_onend;
+    var start_timestamp;
+
+    if (!('webkitSpeechRecognition' in window)) {
+      upgrade();
+    } else {
+      var recognition = new webkitSpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onstart = function () {
+        recognizing = true;
+        showInfo('info_speak_now');
+        document.getElementById('start_button').classList.add('recognizing');
+      };
+
+      recognition.onerror = function (event) {
+        if (event.error == 'no-speech') {
+          showInfo('info_no_speech');
+          ignore_onend = true;
+        }
+        if (event.error == 'audio-capture') {
+          showInfo('info_no_microphone');
+          ignore_onend = true;
+        }
+        if (event.error == 'not-allowed') {
+          if (event.timeStamp - start_timestamp < 100) {
+            showInfo('info_blocked');
+          } else {
+            showInfo('info_denied');
+          }
+          ignore_onend = true;
+        }
+      };
+
+      recognition.onend = function () {
+        recognizing = false;
+        document.getElementById('start_button').classList.remove('recognizing');
+        if (ignore_onend) return;
+        if (!final_transcript) {
+          showInfo('info_start');
+          return;
+        }
+        showInfo('');
+      };
+
+      recognition.onresult = function (event) {
+        var interim_transcript = '';
+        var has_final = false;
+        for (var i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            final_transcript += event.results[i][0].transcript;
+            has_final = true;
+          } else {
+            interim_transcript += event.results[i][0].transcript;
+          }
+        }
+        final_transcript = capitalize(final_transcript);
+        final_span.innerHTML = linebreak(final_transcript);
+        interim_span.innerHTML = linebreak(interim_transcript);
+        if (has_final) {
+          copyToClipboard(final_transcript);
+        }
+      };
+    }
+
+    function copyToClipboard(text) {
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(function () {
+        var results = document.getElementById('results');
+        results.style.transition = 'background-color 0.2s';
+        results.style.backgroundColor = '#e6ffed';
+        setTimeout(function () {
+          results.style.backgroundColor = '#f9f9f9';
+        }, 500);
+      }).catch(function (err) {
+        console.error('Could not copy text: ', err);
+      });
+    }
+
+    function upgrade() {
+      start_button.style.visibility = 'hidden';
+      showInfo('info_upgrade');
+    }
+
+    function linebreak(s) {
+      return s.replace(/\n\n/g, '<p></p>').replace(/\n/g, '<br>');
+    }
+
+    function capitalize(s) {
+      return s.replace(/\S/, function (m) { return m.toUpperCase(); });
+    }
+
+
+    function startButton(event) {
+      if (recognizing) {
+        recognition.stop();
+        return;
+      }
+      final_transcript = '';
+      recognition.lang = select_dialect.value;
+      recognition.start();
+      ignore_onend = false;
+      final_span.innerHTML = '';
+      interim_span.innerHTML = '';
+      showInfo('info_allow');
+      start_timestamp = event.timeStamp;
+    }
+
+    function showInfo(s) {
+      var info = document.getElementById('info');
+      if (s) {
+        for (var i = 0; i < info.children.length; i++) {
+          info.children[i].style.display = info.children[i].id == s ? 'inline' : 'none';
+        }
+        info.style.visibility = 'visible';
+      } else {
+        info.style.visibility = 'hidden';
+      }
+    }
+
+  </script>
+</body>
+
+</html>
