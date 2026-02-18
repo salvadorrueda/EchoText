@@ -2,3 +2,4 @@ flask
 openai-whisper
 torch
 numpy
+waitress

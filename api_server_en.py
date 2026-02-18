@@ -27,6 +27,7 @@ import whisper
 import torch
 from flask import Flask, request, jsonify
 import tempfile
+from waitress import serve
 
 app = Flask(__name__)
 
@@ -124,6 +125,6 @@ if __name__ == '__main__':
     # Ho fem abans d'iniciar el servidor per simplificar
     load_model()
     
-    # Iniciar servidor Flask accessible des de la xarxa local al port 5001
-    print("Iniciant servidor API (English) a 0.0.0.0:5001...")
-    app.run(host='0.0.0.0', port=5001, debug=False)
+    # Iniciar servidor Waitress accessible des de la xarxa local al port 5001
+    print("Iniciant servidor API (English) amb Waitress a 0.0.0.0:5001...")
+    serve(app, host='0.0.0.0', port=5001)
