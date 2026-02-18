@@ -31,6 +31,13 @@ from waitress import serve
 
 app = Flask(__name__)
 
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+    response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+    return response
+
 # Variable global per emmagatzemar el model
 model_container = {}
 
@@ -85,10 +92,16 @@ def transcribe_audio():
         return jsonify({'error': 'No selected file'}), 400
 
     if file:
-        language = request.form.get('language', 'ca') # Per defecte català
+        language = request.form.get('language') # None triggers auto-detection
+        
+        # Determinar extensió del fitxer original
+        import os.path
+        ext = os.path.splitext(file.filename)[1] if file.filename else '.wav'
+        if not ext:
+            ext = '.wav'
         
         # Guardar fitxer temporalment
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as temp:
             file.save(temp.name)
             temp_path = temp.name
 
