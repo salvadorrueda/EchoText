@@ -150,6 +150,35 @@
             background: #ffeef0;
             color: #b91c1c;
         }
+
+        #server-url-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        #server-url-container label {
+            font-size: 13px;
+            color: #5f6368;
+            white-space: nowrap;
+        }
+
+        #server_url {
+            font-size: 13px;
+            padding: 6px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            width: 100%;
+            color: var(--text-color);
+            background: #fff;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        #server_url:focus {
+            border-color: var(--primary-color);
+        }
     </style>
 </head>
 
@@ -162,6 +191,10 @@
         </div>
 
         <div id="div_start">
+            <div id="server-url-container">
+                <label for="server_url">Server URL:</label>
+                <input type="text" id="server_url" value="http://localhost:5000/transcribe" />
+            </div>
             <button id="start_button">
                 <svg class="mic-icon" viewBox="0 0 24 24">
                     <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
@@ -242,8 +275,9 @@
             const formData = new FormData();
             formData.append('file', audioBlob, 'recording' + ext);
 
+            const serverUrl = document.getElementById('server_url').value.trim() || 'http://localhost:5000/transcribe';
             try {
-                const response = await fetch('http://localhost:5000/transcribe', {
+                const response = await fetch(serverUrl, {
                     method: 'POST',
                     body: formData
                 });
