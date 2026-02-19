@@ -217,7 +217,6 @@
         const buttonText = document.getElementById('button_text');
         const info = document.getElementById('info');
         const results = document.getElementById('results');
-        const apiStatus = document.getElementById('api_status');
 
         let mediaRecorder;
         let audioChunks = [];
@@ -292,11 +291,9 @@
 
                 displayTranscription(data.text);
                 info.textContent = 'Transcription complete.';
-                apiStatus.className = 'status-badge status-connected';
             } catch (err) {
                 console.error('Error during transcription:', err);
                 info.textContent = 'Error: ' + err.message;
-                apiStatus.className = 'status-badge status-error';
             } finally {
                 startButton.classList.remove('loading');
                 buttonText.textContent = 'Start Recording';
