@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta content="initial-scale=1, minimum-scale=1, width=device-width" name="viewport">
+    <meta content="Comparative Transcription Demo" name="description">
+    <title>EchoText - Comparative Transcription</title>
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700&amp;subset=latin" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4285f4;
+            --error-color: #ea4335;
+            --bg-color: #f8f9fa;
+            --text-color: #202124;
+            --border-color: #dadce0;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Open Sans', sans-serif;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+
+        #main {
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--text-color);
+            margin-bottom: 40px;
+            font-weight: 300;
+            font-size: 2.5rem;
+        }
+
+        #info {
+            font-size: 16px;
+            text-align: center;
+            margin-bottom: 30px;
+            min-height: 1.5em;
+            color: #5f6368;
+        }
+
+        .settings-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .settings-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .settings-group label {
+            font-size: 14px;
+            color: #5f6368;
+        }
+
+        .settings-group input,
+        .settings-group select {
+            font-size: 14px;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: #fff;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .settings-group input:focus,
+        .settings-group select:focus {
+            border-color: var(--primary-color);
+        }
+
+        #div_start {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        #start_button {
+            border: none;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 24px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
+            box-shadow: 0 1px 3px 0 rgba(60, 64, 67, .3), 0 4px 8px 3px rgba(60, 64, 67, .15);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #start_button:hover {
+            background-color: #1a73e8;
+            box-shadow: 0 2px 3px 0 rgba(60, 64, 67, .3), 0 6px 10px 4px rgba(60, 64, 67, .15);
+        }
+
+        #start_button:active {
+            transform: scale(0.98);
+        }
+
+        #start_button.recording {
+            background-color: var(--error-color);
+            animation: pulse 1.5s infinite;
+        }
+
+        #start_button.loading {
+            background-color: #5f6368;
+            cursor: not-allowed;
+        }
+
+        .mic-icon {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(234, 67, 53, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(234, 67, 53, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(234, 67, 53, 0);
+            }
+        }
+
+        .comparison-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .result-box {
+            flex: 1;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 1px 2px 0 rgba(60, 64, 67, .3), 0 1px 3px 1px rgba(60, 64, 67, .15);
+            display: flex;
+            flex-direction: column;
+            width: 50%;
+        }
+
+        .result-box h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            color: var(--primary-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        .transcription-content {
+            font-size: 16px;
+            line-height: 1.6;
+            min-height: 200px;
+            white-space: pre-wrap;
+            flex-grow: 1;
+        }
+
+        .placeholder {
+            color: #70757a;
+            font-style: italic;
+        }
+
+        .interim {
+            color: #999;
+            font-style: italic;
+        }
+
+        .final {
+            color: #000;
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .comparison-container {
+                flex-direction: column;
+            }
+
+            .result-box {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="main">
+        <h1>EchoText Comparative Transcription</h1>
+
+        <div id="info">
+            <span id="info_text">Ready to transcribe. Click the button to start recording.</span>
+        </div>
+
+        <div class="settings-container">
+            <div class="settings-group">
+                <label for="server_url">Docker Server URL:</label>
+                <input type="text" id="server_url" value="http://localhost:5000/transcribe" />
+            </div>
+            <div class="settings-group">
+                <label for="select_language">Web Speech API Lang:</label>
+                <select id="select_language" onchange="updateCountry()"></select>
+                <select id="select_dialect"></select>
+            </div>
+        </div>
+
+        <div id="div_start">
+            <button id="start_button">
+                <svg class="mic-icon" viewBox="0 0 24 24">
+                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                    <path
+                        d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                </svg>
+                <span id="button_text">Start Recording</span>
+            </button>
+        </div>
+
+        <div class="comparison-container">
+            <div class="result-box">
+                <h2>Docker transcription</h2>
+                <div id="docker_results" class="transcription-content"><span class="placeholder">Docker transcription
+                        will appear here...</span></div>
+            </div>
+            <div class="result-box">
+                <h2>Web Speech API</h2>
+                <div id="web_speech_results" class="transcription-content">
+                    <span class="final" id="final_span"></span>
+                    <span class="interim" id="interim_span"><span class="placeholder">Web Speech API transcription will
+                            appear here...</span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Setup Languages for Web Speech API ---
+        const langs = [
+            ['Afrikaans', ['af-ZA']],
+            ['Català', ['ca-ES']],
+            ['Dansk', ['da-DK']],
+            ['Deutsch', ['de-DE']],
+            ['English', ['en-AU', 'Australia'], ['en-CA', 'Canada'], ['en-IN', 'India'], ['en-NZ', 'New Zealand'], ['en-ZA', 'South Africa'], ['en-GB', 'United Kingdom'], ['en-US', 'United States']],
+            ['Español', ['es-AR', 'Argentina'], ['es-BO', 'Bolivia'], ['es-CL', 'Chile'], ['es-CO', 'Colombia'], ['es-CR', 'Costa Rica'], ['es-EC', 'Ecuador'], ['es-SV', 'El Salvador'], ['es-ES', 'España'], ['es-US', 'Estados Unidos'], ['es-GT', 'Guatemala'], ['es-HN', 'Honduras'], ['es-MX', 'México'], ['es-NI', 'Nicaragua'], ['es-PA', 'Panamá'], ['es-PY', 'Paraguay'], ['es-PE', 'Perú'], ['es-PR', 'Puerto Rico'], ['es-DO', 'República Dominicana'], ['es-UY', 'Uruguay'], ['es-VE', 'Venezuela']],
+            ['Euskara', ['eu-ES']],
+            ['Français', ['fr-FR']],
+            ['Galego', ['gl-ES']],
+            ['Italiano', ['it-IT', 'Italia'], ['it-CH', 'Svizzera']],
+            ['Nederlands', ['nl-NL']],
+            ['Norsk bokmål', ['nb-NO']],
+            ['Polski', ['pl-PL']],
+            ['Português', ['pt-BR', 'Brasil'], ['pt-PT', 'Portugal']],
+            ['Română', ['ro-RO']],
+            ['Svenska', ['sv-SE']],
+            ['Türkçe', ['tr-TR']],
+            ['Русский', ['ru-RU']],
+            ['한국어', ['ko-KR']],
+            ['中文', ['cmn-Hans-CN', '普通话 (中国大陆)'], ['cmn-Hans-HK', '普通话 (香港)'], ['cmn-Hant-TW', '中文 (台灣)'], ['yue-Hant-HK', '粵語 (香港)']],
+            ['日本語', ['ja-JP']]
+        ];
+
+        const select_language = document.getElementById('select_language');
+        const select_dialect = document.getElementById('select_dialect');
+
+        for (let i = 0; i < langs.length; i++) {
+            select_language.options[i] = new Option(langs[i][0], i);
+        }
+        select_language.selectedIndex = 1; // Catalan default
+
+        function updateCountry() {
+            for (let i = select_dialect.options.length - 1; i >= 0; i--) {
+                select_dialect.remove(i);
+            }
+            const list = langs[select_language.selectedIndex];
+            for (let i = 1; i < list.length; i++) {
+                select_dialect.options.add(new Option(list[i][1], list[i][0]));
+            }
+            select_dialect.style.visibility = list[1].length == 1 ? 'hidden' : 'visible';
+        }
+        updateCountry();
+
+        // --- Core Application Logic ---
+        const startButton = document.getElementById('start_button');
+        const buttonText = document.getElementById('button_text');
+        const infoText = document.getElementById('info_text');
+        const dockerResults = document.getElementById('docker_results');
+        const finalSpan = document.getElementById('final_span');
+        const interimSpan = document.getElementById('interim_span');
+
+        let isRecording = false;
+
+        // MediaRecorder variables (Docker)
+        let mediaRecorder;
+        let audioChunks = [];
+        let globalStream = null;
+
+        // Web Speech API variables
+        let recognition;
+        let final_transcript = '';
+        let webSpeechSupported = ('webkitSpeechRecognition' in window);
+
+        if (webSpeechSupported) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            recognition.onstart = function () {
+                console.log("Web Speech API started");
+            };
+
+            recognition.onerror = function (event) {
+                console.error("Web Speech API error:", event.error);
+                if (event.error === 'not-allowed') {
+                    infoText.textContent = "Permission to use microphone is denied.";
+                }
+            };
+
+            recognition.onend = function () {
+                console.log("Web Speech API ended");
+            };
+
+            recognition.onresult = function (event) {
+                let interim_transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        final_transcript += event.results[i][0].transcript;
+                    } else {
+                        interim_transcript += event.results[i][0].transcript;
+                    }
+                }
+                finalSpan.innerHTML = capitalize(linebreak(final_transcript));
+                interimSpan.innerHTML = linebreak(interim_transcript);
+            };
+        } else {
+            alert("Web Speech API is not supported in this browser. Please use Google Chrome.");
+            select_language.disabled = true;
+            select_dialect.disabled = true;
+        }
+
+        function linebreak(s) {
+            return s.replace(/\n\n/g, '<p></p>').replace(/\n/g, '<br>');
+        }
+
+        function capitalize(s) {
+            return s.replace(/\S/, function (m) { return m.toUpperCase(); });
+        }
+
+        startButton.addEventListener('click', async () => {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        });
+
+        async function startRecording() {
+            try {
+                // Request microphone once and use for both if possible
+                globalStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+                // Initialize Docker MediaRecorder
+                mediaRecorder = new MediaRecorder(globalStream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = sendAudioToServer;
+                mediaRecorder.start();
+
+                // Initialize Web Speech API
+                if (webSpeechSupported) {
+                    final_transcript = '';
+                    finalSpan.innerHTML = '';
+                    interimSpan.innerHTML = '';
+                    recognition.lang = select_dialect.value || 'ca-ES';
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        console.error("Could not start Web Speech Recognition:", e);
+                    }
+                }
+
+                // Update UI
+                isRecording = true;
+                startButton.classList.add('recording');
+                startButton.classList.remove('loading');
+                buttonText.textContent = 'Stop Recording';
+                infoText.textContent = 'Recording for both Docker and Web Speech API... Speak now.';
+                dockerResults.innerHTML = '<span class="placeholder">Listening...</span>';
+
+            } catch (err) {
+                console.error('Error accessing microphone:', err);
+                infoText.textContent = 'Error: Could not access microphone.';
+                infoText.style.color = '#ea4335';
+            }
+        }
+
+        function stopRecording() {
+            if (isRecording) {
+                // Stop Docker Recording
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                }
+
+                // Stop Media Stream Tracks
+                if (globalStream) {
+                    globalStream.getTracks().forEach(track => track.stop());
+                }
+
+                // Stop Web Speech API
+                if (webSpeechSupported) {
+                    try {
+                        recognition.stop();
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }
+
+                // Update UI
+                isRecording = false;
+                startButton.classList.remove('recording');
+                startButton.classList.add('loading');
+                buttonText.textContent = 'Processing...';
+                infoText.textContent = 'Processing audio... waiting for Docker Server response.';
+                interimSpan.innerHTML = ''; // Clear interim results when stopped
+            }
+        }
+
+        async function sendAudioToServer() {
+            const mimeType = mediaRecorder.mimeType || 'audio/webm';
+            const audioBlob = new Blob(audioChunks, { type: mimeType });
+            const ext = mimeType.includes('webm') ? '.webm' : mimeType.includes('ogg') ? '.ogg' : '.wav';
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'recording' + ext);
+
+            const serverUrl = document.getElementById('server_url').value.trim() || 'http://localhost:5000/transcribe';
+            try {
+                const response = await fetch(serverUrl, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                displayDockerTranscription(data.text);
+                infoText.textContent = 'Transcription complete.';
+            } catch (err) {
+                console.error('Error during Docker transcription:', err);
+                dockerResults.innerHTML = `<span class="placeholder" style="color: #ea4335;">Error: ${err.message}</span>`;
+                infoText.textContent = 'Transcription finished with errors.';
+            } finally {
+                startButton.classList.remove('loading');
+                buttonText.textContent = 'Start Recording';
+            }
+        }
+
+        function displayDockerTranscription(text) {
+            if (!text) {
+                dockerResults.innerHTML = '<span class="placeholder">No speech detected by Docker Server.</span>';
+            } else {
+                dockerResults.textContent = text;
+            }
+        }
+    </script>
+</body>
+
+</html>
