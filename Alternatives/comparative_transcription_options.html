@@ -258,7 +258,301 @@
         </div>
     </div>
 
-$(cat temp_script.html)
+    <script>
+        // --- Setup Languages for Web Speech API ---
+        const langs = [
+            ['Afrikaans', ['af-ZA']],
+            ['Català', ['ca-ES']],
+            ['Dansk', ['da-DK']],
+            ['Deutsch', ['de-DE']],
+            ['English', ['en-AU', 'Australia'], ['en-CA', 'Canada'], ['en-IN', 'India'], ['en-NZ', 'New Zealand'], ['en-ZA', 'South Africa'], ['en-GB', 'United Kingdom'], ['en-US', 'United States']],
+            ['Español', ['es-AR', 'Argentina'], ['es-BO', 'Bolivia'], ['es-CL', 'Chile'], ['es-CO', 'Colombia'], ['es-CR', 'Costa Rica'], ['es-EC', 'Ecuador'], ['es-SV', 'El Salvador'], ['es-ES', 'España'], ['es-US', 'Estados Unidos'], ['es-GT', 'Guatemala'], ['es-HN', 'Honduras'], ['es-MX', 'México'], ['es-NI', 'Nicaragua'], ['es-PA', 'Panamá'], ['es-PY', 'Paraguay'], ['es-PE', 'Perú'], ['es-PR', 'Puerto Rico'], ['es-DO', 'República Dominicana'], ['es-UY', 'Uruguay'], ['es-VE', 'Venezuela']],
+            ['Euskara', ['eu-ES']],
+            ['Français', ['fr-FR']],
+            ['Galego', ['gl-ES']],
+            ['Italiano', ['it-IT', 'Italia'], ['it-CH', 'Svizzera']],
+            ['Nederlands', ['nl-NL']],
+            ['Norsk bokmål', ['nb-NO']],
+            ['Polski', ['pl-PL']],
+            ['Português', ['pt-BR', 'Brasil'], ['pt-PT', 'Portugal']],
+            ['Română', ['ro-RO']],
+            ['Svenska', ['sv-SE']],
+            ['Türkçe', ['tr-TR']],
+            ['Русский', ['ru-RU']],
+            ['한국어', ['ko-KR']],
+            ['中文', ['cmn-Hans-CN', '普通话 (中国大陆)'], ['cmn-Hans-HK', '普通话 (香港)'], ['cmn-Hant-TW', '中文 (台灣)'], ['yue-Hant-HK', '粵語 (香港)']],
+            ['日本語', ['ja-JP']]
+        ];
+
+        const select_language = document.getElementById('select_language');
+        const select_dialect = document.getElementById('select_dialect');
+
+        for (let i = 0; i < langs.length; i++) {
+            select_language.options[i] = new Option(langs[i][0], i);
+        }
+        select_language.selectedIndex = 1; // Catalan default
+
+        function updateCountry() {
+            for (let i = select_dialect.options.length - 1; i >= 0; i--) {
+                select_dialect.remove(i);
+            }
+            const list = langs[select_language.selectedIndex];
+            for (let i = 1; i < list.length; i++) {
+                select_dialect.options.add(new Option(list[i][1], list[i][0]));
+            }
+            select_dialect.style.visibility = list[1].length == 1 ? 'hidden' : 'visible';
+        }
+        updateCountry();
+
+        // --- Core Application Logic ---
+        const startButton = document.getElementById('start_button');
+        const buttonText = document.getElementById('button_text');
+        const infoText = document.getElementById('info_text');
+        const dockerResults = document.getElementById('docker_results');
+        const finalSpan = document.getElementById('final_span');
+        const interimSpan = document.getElementById('interim_span');
+
+        let isRecording = false;
+
+        // MediaRecorder variables (Docker)
+        let mediaRecorder;
+        let audioChunks = [];
+        let globalStream = null;
+        let dockerIntervalId = null;
+        let fullDockerText = "";
+
+        // Web Speech API variables
+        let recognition;
+        let final_transcript = '';
+        let webSpeechSupported = ('webkitSpeechRecognition' in window);
+
+        if (webSpeechSupported) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            recognition.onstart = function () {
+                console.log("Web Speech API started");
+            };
+
+            recognition.onerror = function (event) {
+                console.error("Web Speech API error:", event.error);
+                if (event.error === 'not-allowed') {
+                    infoText.textContent = "Permission to use microphone is denied.";
+                }
+            };
+
+            recognition.onend = function () {
+                console.log("Web Speech API ended");
+            };
+
+            recognition.onresult = function (event) {
+                let interim_transcript = '';
+                let new_final = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        new_final += event.results[i][0].transcript;
+                    } else {
+                        interim_transcript += event.results[i][0].transcript;
+                    }
+                }
+                if (new_final) {
+                    final_transcript += new_final;
+                    finalSpan.innerHTML = capitalize(linebreak(final_transcript));
+                }
+                interimSpan.innerHTML = linebreak(interim_transcript);
+            };
+        } else {
+            alert("Web Speech API is not supported in this browser. Please use Google Chrome.");
+            select_language.disabled = true;
+            select_dialect.disabled = true;
+        }
+
+        function linebreak(s) {
+            return s.replace(/\n\n/g, '<p></p>').replace(/\n/g, '<br>');
+        }
+
+        function capitalize(s) {
+            return s.replace(/\S/, function (m) { return m.toUpperCase(); });
+        }
+
+        startButton.addEventListener('click', async () => {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        });
+
+        // Starts a new docker audio chunk
+        function startDockerChunkRecording() {
+            if (!globalStream || !isRecording) return;
+
+            audioChunks = [];
+            mediaRecorder = new MediaRecorder(globalStream);
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunks.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = sendDockerChunkToServer;
+            mediaRecorder.start();
+        }
+
+        async function startRecording() {
+            try {
+                // Request microphone once and use for both if possible
+                globalStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                isRecording = true;
+
+                // Initialize Docker Loop (send chunk every 5 seconds)
+                fullDockerText = "";
+                dockerResults.innerHTML = '<span class="placeholder">Listening...</span>';
+
+                startDockerChunkRecording();
+                dockerIntervalId = setInterval(() => {
+                    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                        mediaRecorder.stop(); // Triggers onstop -> sendDockerChunkToServer
+                    }
+                    if (isRecording) {
+                        startDockerChunkRecording();
+                    }
+                }, 5000);
+
+                // Initialize Web Speech API
+                if (webSpeechSupported) {
+                    final_transcript = '';
+                    finalSpan.innerHTML = '';
+                    interimSpan.innerHTML = '';
+                    recognition.lang = select_dialect.value || 'ca-ES';
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        console.error("Could not start Web Speech Recognition:", e);
+                    }
+                }
+
+                // Update UI
+                startButton.classList.add('recording');
+                startButton.classList.remove('loading');
+                buttonText.textContent = 'Stop Recording';
+                infoText.textContent = 'Recording for both Docker and Web Speech API... Speak now.';
+
+            } catch (err) {
+                console.error('Error accessing microphone:', err);
+                infoText.textContent = 'Error: Could not access microphone.';
+                infoText.style.color = '#ea4335';
+                isRecording = false;
+            }
+        }
+
+        function stopRecording() {
+            if (isRecording) {
+                isRecording = false;
+
+                // Clear Docker interval
+                if (dockerIntervalId) {
+                    clearInterval(dockerIntervalId);
+                    dockerIntervalId = null;
+                }
+
+                // Stop Docker Recording chunk
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                }
+
+                // Stop Media Stream Tracks
+                if (globalStream) {
+                    globalStream.getTracks().forEach(track => track.stop());
+                }
+
+                // Stop Web Speech API
+                if (webSpeechSupported) {
+                    try {
+                        recognition.stop();
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }
+
+                // Update UI
+                startButton.classList.remove('recording');
+                startButton.classList.add('loading');
+                buttonText.textContent = 'Processing...';
+                infoText.textContent = 'Processing final audio...';
+                interimSpan.innerHTML = ''; // Clear interim results when stopped
+            }
+        }
+
+        async function sendDockerChunkToServer() {
+            if (audioChunks.length === 0) {
+                if (!isRecording) {
+                    // Finish UI sequence
+                    startButton.classList.remove('loading');
+                    buttonText.textContent = 'Start Recording';
+                    infoText.textContent = 'Transcription complete.';
+                }
+                return;
+            }
+
+            const mimeType = mediaRecorder.mimeType || 'audio/webm';
+            const audioBlob = new Blob(audioChunks, { type: mimeType });
+            const ext = mimeType.includes('webm') ? '.webm' : mimeType.includes('ogg') ? '.ogg' : '.wav';
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'recording' + ext);
+
+            // Pass the Web Speech lang so Docker whisper model can know if needed
+            const selectedLanguage = select_dialect.value ? select_dialect.value.split('-')[0] : 'ca';
+            formData.append('language', selectedLanguage);
+
+            const serverUrl = document.getElementById('server_url').value.trim() || 'http://localhost:5000/transcribe';
+            try {
+                const response = await fetch(serverUrl, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                appendDockerTranscription(data.text);
+
+                if (!isRecording) {
+                    infoText.textContent = 'Transcription complete.';
+                }
+            } catch (err) {
+                console.error('Error during Docker transcription:', err);
+                // Optionally show error inline or skip snippet
+                if (!isRecording && !fullDockerText) {
+                    dockerResults.innerHTML = `<span class="placeholder" style="color: #ea4335;">Error: ${err.message}</span>`;
+                }
+            } finally {
+                if (!isRecording) {
+                    startButton.classList.remove('loading');
+                    buttonText.textContent = 'Start Recording';
+                }
+            }
+        }
+
+        function appendDockerTranscription(text) {
+            if (text && text.trim().length > 0) {
+                if (fullDockerText === "") {
+                    fullDockerText = text;
+                } else {
+                    fullDockerText += " " + text;
+                }
+                dockerResults.innerHTML = linebreak(fullDockerText);
+            }
+        }
+    </script>
 </body>
 
 </html>
