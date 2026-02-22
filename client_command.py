@@ -28,7 +28,7 @@ import numpy as np
 import scipy.io.wavfile as wav
 import tempfile
 import pyperclip
-import voice_commands
+from lib import voice_commands
 
 def print_help():
     """Mostra la informació d'ajuda del programa."""
