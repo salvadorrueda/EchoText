@@ -2,24 +2,13 @@
 import os
 import sys
 
-# Auto-activació de l'entorn virtual (venv) si existeix i no està actiu
-def activate_venv():
-    # Comprovar si ja estem executant-nos des del venv d'aquest projecte
-    # Basat en si el path de l'executable conté 'venv/bin/python'
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    venv_python = os.path.join(base_dir, "venv", "bin", "python3")
-    
-    # Si l'entorn virtual existeix i no el fem servir actualment, ens reiniciem
-    # També comprovem VIRTUAL_ENV per seguretat, tot i que l'executable és més directe
-    if os.path.exists(venv_python) and sys.executable != venv_python:
-        print(f"Activant entorn virtual: {venv_python}")
-        os.execv(venv_python, [venv_python] + sys.argv)
+from lib.venv_activator import activate_venv
 
 if __name__ == "__main__" or __name__ == "api_server":
     # Només ho executem si és el punt d'entrada per evitar bucles infinits
     # i abans d'importar altres mòduls que podrien faltar al sistema
     if "api_server.py" in sys.argv[0] or "./api_server.py" in sys.argv[0]:
-        activate_venv()
+        activate_venv(__file__)
 
 import threading
 import time

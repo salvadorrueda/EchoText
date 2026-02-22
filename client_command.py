@@ -2,22 +2,10 @@
 import sys
 import os
 
-# Auto-activació de l'entorn virtual (venv) si existeix i no està actiu
-def activate_venv():
-    # Comprovar si ja estem executant-nos des del venv d'aquest projecte
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    venv_python = os.path.join(base_dir, "venv", "bin", "python3")
-    
-    # Si no estem en un venv (sys.prefix == sys.base_prefix) i el venv local existeix
-    if sys.prefix == sys.base_prefix and os.path.exists(venv_python):
-        # Reiniciar-se amb l'executable del venv
-        os.execv(venv_python, [venv_python] + sys.argv)
+from lib.venv_activator import activate_venv
 
 if __name__ == "__main__":
-    # Només ho executem si és el punt d'entrada
-    # Modificat per reflectir el nou nom de l'arxiu
-    if "client_command.py" in sys.argv[0] or "./client_command.py" in sys.argv[0]:
-        activate_venv()
+    activate_venv(__file__)
 
 # Importacions que requereixen el venv
 import requests
