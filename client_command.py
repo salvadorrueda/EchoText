@@ -28,6 +28,7 @@ import numpy as np
 import scipy.io.wavfile as wav
 import tempfile
 import pyperclip
+import voice_commands
 
 def print_help():
     """Mostra la informació d'ajuda del programa."""
@@ -45,6 +46,7 @@ def print_help():
     print("  'terminal'     Obre una nova finestra de terminal.")
     print("  'firefox'      Obre el navegador Firefox.")
     print("  'google'       Obre el navegador Google Chrome.")
+    print("  'antigravity'  Obre l'aplicació Antigravity.")
     print("  'suspèn'       Suspèn l'ordinador.")
     print("  'apaga'        Apaga l'ordinador.")
     print("  'hora'         Diu l'hora actual.")
@@ -110,80 +112,15 @@ def record_audio(server_url, fs=16000, chunk_duration=5):
                                 waiting_for_command = True
                                 
                                 # Comprovar si l'ordre està en el mateix fragment
-                                if "terminal" in text_lower:
-                                    print(">>> Ordre 'obra terminal' detectada!")
-                                    os.system('gnome-terminal &')
-                                    os.system('echovoice "Obrint terminal."')
-                                    waiting_for_command = False
-                                elif "firefox" in text_lower:
-                                    print(">>> Ordre 'Firefox' detectada!")
-                                    os.system('firefox &')
-                                    os.system('echovoice "Obrint Firefox."')
-                                    waiting_for_command = False
-                                elif "google" in text_lower:
-                                    print(">>> Ordre 'Chrome' detectada!")
-                                    os.system('google-chrome &')
-                                    os.system('echovoice "Obrint Chrome."')
-                                    waiting_for_command = False
-                                elif "hora" in text_lower:
-                                    print(">>> Ordre 'hora' detectada!")
-                                    os.system("echovoice \"Ara són les $(date +'%H:%M')\"")
-                                    waiting_for_command = False
-                                elif "dia" in text_lower:
-                                    print(">>> Ordre 'dia' detectada!")
-                                    os.system("echovoice \" Avui és $(date +'%A, %d de %B')\"")
-                                    waiting_for_command = False
-                                elif "apaga" in text_lower:
-                                    print(">>> Ordre 'apaga' detectada!")
-                                    os.system('echovoice "Apagant l\'ordinador."')
-                                    os.system('systemctl poweroff')
-                                    waiting_for_command = False
-                                elif "suspèn" in text_lower or "suspen" in text_lower:
-                                    print(">>> Ordre 'suspèn' detectada!")
-                                    os.system('echovoice "Suspenent l\'ordinador."')
-                                    os.system('systemctl suspend')
+                                if voice_commands.process_command(text_lower):
                                     waiting_for_command = False
                                 else:
                                     os.system('echovoice "Hola, amb què puc ajudar?"')
                             
                             # Si ja havíem dit Hola, busquem l'ordre
                             elif waiting_for_command:
-                                if "terminal" in text_lower:
-                                    print(">>> Ordre 'obra terminal' detectada!")
-                                    os.system('gnome-terminal &')
-                                    os.system('echovoice "Obrint terminal."')
+                                if voice_commands.process_command(text_lower):
                                     waiting_for_command = False
-                                elif "firefox" in text_lower:
-                                    print(">>> Ordre 'Firefox' detectada!")
-                                    os.system('firefox &')
-                                    os.system('echovoice "Obrint Firefox."')
-                                    waiting_for_command = False
-                                elif "google" in text_lower:
-                                    print(">>> Ordre 'Chrome' detectada!")
-                                    os.system('google-chrome &')
-                                    os.system('echovoice "Obrint Chrome."')
-                                    waiting_for_command = False
-                                elif "hora" in text_lower:
-                                    print(">>> Ordre 'hora' detectada!")
-                                    os.system("echovoice \"Ara són les $(date +'%H:%M')\"")
-                                    waiting_for_command = False
-                                elif "dia" in text_lower:
-                                    print(">>> Ordre 'dia' detectada!")
-                                    os.system("echovoice \" Avui és $(date +'%A, %d de %B')\"")
-                                    waiting_for_command = False
-                                elif "apaga" in text_lower:
-                                    print(">>> Ordre 'apaga' detectada!")
-                                    os.system('echovoice "Apagant l\'ordinador."')
-                                    os.system('systemctl poweroff')
-                                    waiting_for_command = False
-                                elif "suspèn" in text_lower or "suspen" in text_lower:
-                                    print(">>> Ordre 'suspèn' detectada!")
-                                    os.system('echovoice "Suspenent l\'ordinador."')
-                                    os.system('systemctl suspend')
-                                    waiting_for_command = False
-                                else:
-                                    # Si no detectem res en aquest fragment, mantinguem l'estat waiting_for_command
-                                    pass
 
                             full_transcription.append(partial_text)
                             
@@ -206,47 +143,10 @@ def record_audio(server_url, fs=16000, chunk_duration=5):
                         text_lower = partial_text.lower()
                         
                         if "hola" in text_lower:
-                            if "terminal" in text_lower:
-                                os.system('gnome-terminal &')
-                                os.system('echovoice "Obrint terminal."')
-                            elif "firefox" in text_lower:
-                                os.system('firefox &')
-                                os.system('echovoice "Obrint Firefox."')
-                            elif "google" in text_lower:
-                                os.system('google-chrome &')
-                                os.system('echovoice "Obrint Chrome."')
-                            elif "hora" in text_lower:
-                                os.system("echovoice \"Ara són les $(date +'%H:%M')\"")
-                            elif "dia" in text_lower:
-                                os.system("echovoice \" Avui és $(date +'%A, %d de %B')\"")
-                            elif "apaga" in text_lower:
-                                os.system('echovoice "Apagant l\'ordinador."')
-                                os.system('systemctl poweroff')
-                            elif "suspèn" in text_lower or "suspen" in text_lower:
-                                os.system('echovoice "Suspenent l\'ordinador."')
-                                os.system('systemctl suspend')
-                            else:
+                            if not voice_commands.process_command(text_lower):
                                 os.system('echovoice "Hola, amb què puc ajudar?"')
                         elif waiting_for_command:
-                             if "terminal" in text_lower:
-                                os.system('gnome-terminal &')
-                                os.system('echovoice "Obrint terminal."')
-                             elif "firefox" in text_lower:
-                                os.system('firefox &')
-                                os.system('echovoice "Obrint Firefox."')
-                             elif "google" in text_lower:
-                                os.system('google-chrome &')
-                                os.system('echovoice "Obrint Chrome."')
-                             elif "hora" in text_lower:
-                                os.system("echovoice \"Ara són les $(date +'%H:%M')\"")
-                             elif "dia" in text_lower:
-                                os.system("echovoice \" Avui és $(date +'%A, %d de %B')\"")
-                             elif "apaga" in text_lower:
-                                os.system('echovoice "Apagant l\'ordinador."')
-                                os.system('systemctl poweroff')
-                             elif "suspèn" in text_lower or "suspen" in text_lower:
-                                os.system('echovoice "Suspenent l\'ordinador."')
-                                os.system('systemctl suspend')
+                             voice_commands.process_command(text_lower)
                             
                         full_transcription.append(partial_text)
 
