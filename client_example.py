@@ -27,6 +27,7 @@ import numpy as np
 import scipy.io.wavfile as wav
 import tempfile
 import pyperclip
+import webbrowser
 
 def print_help():
     """Mostra la informació d'ajuda del programa."""
@@ -164,6 +165,26 @@ def transcribe_file(filepath, server_url="http://localhost:5000/transcribe", pri
         print(f"Error inesperat: {e}")
         return None
 
+def check_server_available(server_url):
+    """Comprova si el servidor està disponible abans de començar."""
+    try:
+        # Peticions GET per veure si respon el port.
+        requests.get(server_url, timeout=2)
+        return True
+    except requests.exceptions.ConnectionError:
+        return False
+    except Exception:
+        # Altres errors com MethodNotAllowed o timeout els donem per bons
+        return True
+
+def open_web_speech_api():
+    """Obre l'alternativa Web Speech API al navegador."""
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    html_path = os.path.join(base_dir, "Alternatives", "web_speech_API.html")
+    print(f"\n[!] No s'ha pogut connectar al servidor a {url}")
+    print(f"[!] Obrint l'alternativa Web Speech API al navegador...\n")
+    webbrowser.open('file://' + html_path)
+
 if __name__ == "__main__":
     # Check for help flag
     if "--help" in sys.argv or "-h" in sys.argv:
@@ -187,6 +208,10 @@ if __name__ == "__main__":
         transcribe_file(audio_file, url)
     else:
         # Si no hi ha fitxer, enregistrem en fragments
+        if not check_server_available(url):
+            open_web_speech_api()
+            sys.exit(1)
+            
         final_text = record_audio(url)
         
         if final_text:
