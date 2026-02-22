@@ -28,6 +28,20 @@ import scipy.io.wavfile as wav
 import tempfile
 import pyperclip
 
+def print_help():
+    """Mostra la informació d'ajuda del programa."""
+    print("EchoText Client Example - Ajuda")
+    print("="*30)
+    print("Aquest script permet transcriure àudio en temps real enviant fragments al servidor.")
+    print("\nÚs:")
+    print("  python3 client_example.py [ARXIU_AUDIO] [IP_SERVIDOR]")
+    print("\nArguments:")
+    print("  ARXIU_AUDIO    (Opcional) Camí a un arxiu .wav per transcriure.")
+    print("  IP_SERVIDOR    (Opcional) IP o hostname del servidor (defecte: localhost).")
+    print("\nOpcions:")
+    print("  -h, --help     Mostra aquesta ajuda.")
+    print("="*30)
+
 
 def record_audio(server_url, fs=16000, chunk_duration=5):
     """Enregistra àudio i envia fragments al servidor cada 5 segons."""
@@ -151,6 +165,11 @@ def transcribe_file(filepath, server_url="http://localhost:5000/transcribe", pri
         return None
 
 if __name__ == "__main__":
+    # Check for help flag
+    if "--help" in sys.argv or "-h" in sys.argv:
+        print_help()
+        sys.exit(0)
+
     server = "localhost"
     if len(sys.argv) > 2:
         server = sys.argv[2]
