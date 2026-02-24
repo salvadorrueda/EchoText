@@ -3,3 +3,6 @@ openai-whisper
 torch
 numpy
 waitress
+sounddevice 
+scipy
+pyperclip

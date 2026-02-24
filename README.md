@@ -83,7 +83,8 @@ docker run --gpus all -p 5000:5000 -v whisper-models:/root/.cache/whisper echote
 Els scripts estan provats en **Ubuntu Desktop** i requereixen:
 - Python 3.x
 - **FFmpeg** (per processar l'àudio) - *Ja inclòs a la imatge Docker.*
-- **PortAudio** (per a l'enregistrament en viu)
+- **PortAudio** (per a l'enregistrament en viu) sudo apt-get install libportaudio2
+
 
 ---
 *Creat com a part del projecte EchoText.*
