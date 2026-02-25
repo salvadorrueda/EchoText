@@ -1,4 +1,5 @@
 import os
+import sys
 
 def process_command(text_lower):
     """
@@ -35,8 +36,22 @@ def process_command(text_lower):
         return True
     elif "apaga" in text_lower:
         print(">>> Ordre 'apaga' detectada!")
-        os.system('echovoice "Apagant l\'ordinador."')
-        os.system('systemctl poweroff')
+        os.system('echovoice "Aturant contenidors docker i apagant l\'sistema."')
+        # Aturar tots els contenidors docker (si n'hi ha)
+        os.system('docker stop $(docker ps -q) 2>/dev/null')
+        
+        # Detectar si és GNOME Desktop
+        is_gnome = "GNOME" in os.environ.get("XDG_CURRENT_DESKTOP", "")
+        
+        if is_gnome:
+            # Utilitzar gnome-session-quit per a una millor integració amb GNOME
+            os.system('gnome-session-quit --power-off --no-prompt')
+        else:
+            # Apagar el sistema via systemctl
+            os.system('systemctl poweroff')
+        
+        # Aturar l'script actual
+        sys.exit(0)
         return True
     elif "suspèn" in text_lower or "suspen" in text_lower:
         print(">>> Ordre 'suspèn' detectada!")

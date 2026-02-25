@@ -111,7 +111,7 @@ def record_audio(server_url, fs=16000, chunk_duration=5):
     return " ".join(full_transcription)
 
 
-def transcribe_file(filepath, server_url="http://localhost:5000/transcribe", print_header=True):
+def transcribe_file(filepath, server_url="https://podcasts-stolen-hart-levy.trycloudflare.com/transcribe", print_header=True):
     if not os.path.exists(filepath):
         print(f"Error: L'arxiu '{filepath}' no existeix.")
         return None
@@ -186,8 +186,18 @@ if __name__ == "__main__":
     elif len(sys.argv) == 2 and not os.path.exists(sys.argv[1]):
         # Si només hi ha un paràmetre i no és un fitxer, assumim que és la IP del servidor
         server = sys.argv[1]
+    else:
+        # Per defecte utilitzem el tunnel de cloudflare sol·licitat
+        server = "https://podcasts-stolen-hart-levy.trycloudflare.com"
         
-    if ":" in server:
+    if server.startswith("http://") or server.startswith("https://"):
+         url = server
+         if not url.endswith("/transcribe"):
+             if url.endswith("/"):
+                 url += "transcribe"
+             else:
+                 url += "/transcribe"
+    elif ":" in server:
          url = f"http://{server}/transcribe"
     else:
          url = f"http://{server}:5000/transcribe"
