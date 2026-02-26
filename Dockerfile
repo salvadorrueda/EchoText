@@ -14,6 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the application code
 COPY lib/ ./lib/
+COPY README.md .
 COPY api_server.py .
 
 # Expose port 5000

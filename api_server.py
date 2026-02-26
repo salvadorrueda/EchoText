@@ -17,6 +17,7 @@ import torch
 from flask import Flask, request, jsonify
 import tempfile
 from waitress import serve
+import markdown
 
 app = Flask(__name__)
 
@@ -64,6 +65,83 @@ def load_model():
     except Exception as e:
         print(f"Error inesperat carregant el model: {e}")
         model_container['error'] = str(e)
+
+@app.route('/', methods=['GET'])
+def index():
+    try:
+        with open('README.md', 'r', encoding='utf-8') as f:
+            md_content = f.read()
+        
+        html_content = markdown.markdown(md_content, extensions=['fenced_code', 'tables'])
+        
+        html_template = f"""
+        <!DOCTYPE html>
+        <html lang="ca">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>EchoText Project</title>
+            <style>
+                body {{
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 800px;
+                    margin: 0 auto;
+                    padding: 20px;
+                }}
+                h1, h2, h3, h4, h5, h6 {{
+                    margin-top: 24px;
+                    margin-bottom: 16px;
+                    font-weight: 600;
+                    line-height: 1.25;
+                }}
+                code {{
+                    background-color: #f6f8fa;
+                    border-radius: 6px;
+                    padding: 0.2em 0.4em;
+                    font-size: 85%;
+                    font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+                }}
+                pre {{
+                    background-color: #f6f8fa;
+                    border-radius: 6px;
+                    padding: 16px;
+                    overflow: auto;
+                }}
+                pre code {{
+                    background-color: transparent;
+                    padding: 0;
+                }}
+                a {{
+                    color: #0969da;
+                    text-decoration: none;
+                }}
+                a:hover {{
+                    text-decoration: underline;
+                }}
+                table {{
+                    border-spacing: 0;
+                    border-collapse: collapse;
+                    margin-bottom: 16px;
+                }}
+                th, td {{
+                    padding: 6px 13px;
+                    border: 1px solid #d0d7de;
+                }}
+                tr:nth-child(2n) {{
+                    background-color: #f6f8fa;
+                }}
+            </style>
+        </head>
+        <body>
+            {html_content}
+        </body>
+        </html>
+        """
+        return html_template
+    except Exception as e:
+        return f"<h1>Error loading README</h1><p>{{str(e)}}</p>", 500
 
 @app.route('/transcribe', methods=['POST'])
 def transcribe_audio():
