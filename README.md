@@ -55,6 +55,11 @@ També pots enviar un prompt personalitzat:
 curl -X POST -F "file=@audio.wav" -F "prompt=El meu text de guia" http://localhost:5000/transcribe
 ```
 
+**Ús des del client (`client_example.py`):**
+```bash
+python3 client_example.py --prompt "Kiru, Kiruna, Kenzo"
+```
+
 ## 🐳 Docker
 
 També pots executar el servidor d'API utilitzant **Docker**. Això és útil si no vols instal·lar dependències localment o per desplegar el servidor en altres màquines.

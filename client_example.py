@@ -30,10 +30,11 @@ def print_help():
     print("  IP_SERVIDOR    (Opcional) IP o hostname del servidor (defecte: localhost).")
     print("\nOpcions:")
     print("  -h, --help     Mostra aquesta ajuda.")
+    print("  --prompt PROMPT (Opcional) Text inicial per guiar la transcripció.")
     print("="*30)
 
 
-def record_audio(server_url, fs=16000, chunk_duration=5):
+def record_audio(server_url, fs=16000, chunk_duration=5, prompt=None):
     """Enregistra àudio i envia fragments al servidor cada 5 segons."""
     print("\n--- Enregistrament de veu (quasi temps-real) ---")
     print("Prem 'ENTER' per començar a enregistrar...")
@@ -78,7 +79,7 @@ def record_audio(server_url, fs=16000, chunk_duration=5):
                     # Enviar fragment al servidor
                     with tempfile.NamedTemporaryFile(delete=True, suffix=".wav") as temp:
                         wav.write(temp.name, fs, np_audio)
-                        partial_text = transcribe_file(temp.name, server_url, print_header=False)
+                        partial_text = transcribe_file(temp.name, server_url, print_header=False, prompt=prompt)
                         
                         if partial_text:
                             print(f"\n[Chunk]: {partial_text}")
@@ -97,7 +98,7 @@ def record_audio(server_url, fs=16000, chunk_duration=5):
                 np_audio = np.concatenate(audio_buffer, axis=0)
                 with tempfile.NamedTemporaryFile(delete=True, suffix=".wav") as temp:
                     wav.write(temp.name, fs, np_audio)
-                    partial_text = transcribe_file(temp.name, server_url, print_header=False)
+                    partial_text = transcribe_file(temp.name, server_url, print_header=False, prompt=prompt)
                     if partial_text:
                         print(f"[Final]: {partial_text}")
                         full_transcription.append(partial_text)
@@ -111,7 +112,7 @@ def record_audio(server_url, fs=16000, chunk_duration=5):
     return " ".join(full_transcription)
 
 
-def transcribe_file(filepath, server_url="http://localhost:5000/transcribe", print_header=True):
+def transcribe_file(filepath, server_url="http://localhost:5000/transcribe", print_header=True, prompt=None):
     if not os.path.exists(filepath):
         print(f"Error: L'arxiu '{filepath}' no existeix.")
         return None
@@ -123,6 +124,8 @@ def transcribe_file(filepath, server_url="http://localhost:5000/transcribe", pri
         with open(filepath, 'rb') as f:
             files = {'file': f}
             data = {'language': 'ca'} # Pots canviar l'idioma aquí
+            if prompt:
+                data['prompt'] = prompt
             response = requests.post(server_url, files=files, data=data)
             
         if response.status_code == 200:
@@ -180,11 +183,23 @@ if __name__ == "__main__":
         print_help()
         sys.exit(0)
 
+    # Parse prompt argument
+    prompt = None
+    if "--prompt" in sys.argv:
+        idx = sys.argv.index("--prompt")
+        if len(sys.argv) > idx + 1:
+            prompt = sys.argv[idx + 1]
+            # Eliminar els arguments del prompt per no confondre la lògica posterior
+            sys.argv.pop(idx)
+            sys.argv.pop(idx)
+
     server = "localhost"
+    # sys.argv[0] is the script name, so we check from index 1
+    # If there are 2 or more arguments remaining after prompt removal, the last one is the server
     if len(sys.argv) > 2:
         server = sys.argv[2]
+    # If there is 1 argument remaining and it's not a file, assume it's the server IP
     elif len(sys.argv) == 2 and not os.path.exists(sys.argv[1]):
-        # Si només hi ha un paràmetre i no és un fitxer, assumim que és la IP del servidor
         server = sys.argv[1]
         
     if server.startswith("http://") or server.startswith("https://"):
@@ -199,16 +214,17 @@ if __name__ == "__main__":
     else:
          url = f"http://{server}:5000/transcribe"
 
+    # Check if the first remaining argument is an audio file
     if len(sys.argv) >= 2 and os.path.exists(sys.argv[1]):
         audio_file = sys.argv[1]
-        transcribe_file(audio_file, url)
+        transcribe_file(audio_file, url, prompt=prompt)
     else:
         # Si no hi ha fitxer, enregistrem en fragments
         if not check_server_available(url):
             open_web_speech_api()
             sys.exit(1)
             
-        final_text = record_audio(url)
+        final_text = record_audio(url, prompt=prompt)
         
         if final_text:
             print("\n" + "="*30)
