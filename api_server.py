@@ -161,6 +161,11 @@ def transcribe_audio():
     if file:
         language = request.form.get('language') # None triggers auto-detection
         
+        # Obtenir el prompt si existeix, o utilitzar un per defecte per millorar noms propis
+        custom_prompt = request.form.get('prompt')
+        default_prompt = "Kiru, Kiruna, Kenzo, Kenzi, Kenzito."
+        initial_prompt = custom_prompt if custom_prompt else default_prompt
+        
         # Determinar extensió del fitxer original
         import os.path
         ext = os.path.splitext(file.filename)[1] if file.filename else '.wav'
@@ -174,11 +179,11 @@ def transcribe_audio():
 
         try:
             model = model_container['model']
-            # Transcriure
-            result = model.transcribe(temp_path, fp16=False, language=language)
+            # Transcriure amb el prompt inicial
+            result = model.transcribe(temp_path, fp16=False, language=language, initial_prompt=initial_prompt)
             text = result["text"].strip()
             
-            return jsonify({'text': text, 'language': language})
+            return jsonify({'text': text, 'language': language, 'prompt_used': initial_prompt})
             
         except Exception as e:
             return jsonify({'error': str(e)}), 500

@@ -39,6 +39,22 @@ Enregistra àudio directament des del micròfon i el transcriu quan prems la tec
 python3 whisper_live.py
 ```
 
+### 4. Servidor API (`api_server.py`)
+Servidor Flask que permet transcriure fitxers d'àudio via peticions HTTP POST.
+
+#### Transcripció amb Prompt
+El servidor inclou una funcionalitat de **prompt inicial** per millorar el reconeixement de noms propis o termes específics. Per defecte, està configurat per reconèixer millor els noms: `Kiru, Kiruna, Kenzo, Kenzi, Kenzito`.
+
+**Ús amb curl:**
+```bash
+curl -X POST -F "file=@audio.wav" -F "language=ca" http://localhost:5000/transcribe
+```
+
+També pots enviar un prompt personalitzat:
+```bash
+curl -X POST -F "file=@audio.wav" -F "prompt=El meu text de guia" http://localhost:5000/transcribe
+```
+
 ## 🐳 Docker
 
 També pots executar el servidor d'API utilitzant **Docker**. Això és útil si no vols instal·lar dependències localment o per desplegar el servidor en altres màquines.
