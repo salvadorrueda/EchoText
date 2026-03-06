@@ -55,9 +55,10 @@ També pots enviar un prompt personalitzat:
 curl -X POST -F "file=@audio.wav" -F "prompt=El meu text de guia" http://localhost:5000/transcribe
 ```
 
-**Ús des del client (`client_example.py`):**
+**Ús des dels clients (`client_example.py` i `client_command.py`):**
 ```bash
 python3 client_example.py --prompt "Kiru, Kiruna, Kenzo"
+python3 client_command.py --prompt "Kiru, Kenzo"
 ```
 
 ## 🐳 Docker
