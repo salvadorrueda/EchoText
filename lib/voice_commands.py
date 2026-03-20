@@ -19,11 +19,11 @@ def _launch_background(command):
 
 
 def _start_matrix_vm(vm_name="vu01"):
-    """Arrenca una VM de VirtualBox amb validacions i missatges d'error clars."""
+    """Arrenca una VM de VirtualBox i retorna: started, already_running o error."""
     if shutil.which("VBoxManage") is None:
         print(">>> Error: VBoxManage no disponible.")
         os.system('echovoice "No trobo VirtualBox instal.lat."')
-        return True
+        return "error"
 
     list_result = subprocess.run(
         ["VBoxManage", "list", "vms"],
@@ -33,12 +33,12 @@ def _start_matrix_vm(vm_name="vu01"):
     if list_result.returncode != 0:
         print(">>> Error consultant les VMs de VirtualBox:", list_result.stderr.strip())
         os.system('echovoice "No puc consultar les maquines virtuals."')
-        return True
+        return "error"
 
     if f'"{vm_name}"' not in list_result.stdout:
         print(f">>> Error: VM '{vm_name}' no registrada.")
         os.system('echovoice "No trobo la maquina virtual v zero u."')
-        return True
+        return "error"
 
     start_result = subprocess.run(
         ["VBoxManage", "startvm", vm_name, "--type", "gui"],
@@ -48,16 +48,17 @@ def _start_matrix_vm(vm_name="vu01"):
     if start_result.returncode == 0:
         print(f">>> VM '{vm_name}' arrencada correctament.")
         os.system('echovoice "Arrencant la maquina virtual v zero u."')
-        return True
+        return "started"
 
     stderr = (start_result.stderr or "").lower()
     if "already" in stderr and "running" in stderr:
         print(f">>> La VM '{vm_name}' ja estava en execucio.")
         os.system('echovoice "La maquina virtual ja esta en execucio."')
+        return "already_running"
     else:
         print(f">>> Error arrencant la VM '{vm_name}':", start_result.stderr.strip())
         os.system('echovoice "No he pogut arrencar la maquina virtual."')
-    return True
+        return "error"
 
 def process_command(text_lower):
     """
@@ -80,7 +81,11 @@ def process_command(text_lower):
         return True
     elif "matrix" in text_lower:
         print(">>> Ordre 'Matrix' detectada!")
-        return _start_matrix_vm("vu01")
+        matrix_result = _start_matrix_vm("vu01")
+        if matrix_result in {"started", "already_running"}:
+            print(">>> Finalitzant script despres de l'ordre 'Matrix'.")
+            sys.exit(0)
+        return True
     elif "firefox" in text_lower:
         print(">>> Ordre 'Firefox' detectada!")
         if _launch_background(["firefox"]):
