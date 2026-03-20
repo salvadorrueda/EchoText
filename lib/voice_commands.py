@@ -68,6 +68,11 @@ def process_command(text_lower):
         os.system('firefox &')
         os.system('echovoice "Obrint Firefox."')
         return True
+    elif "visual" in text_lower or "studio" in text_lower or "code" in text_lower:
+        print(">>> Ordre 'Visual Studio Code' detectada!")
+        os.system('code &')
+        os.system('echovoice "Obrint Visual Studio Code."')
+        return True
     elif "antigravity" in text_lower:
         print(">>> Ordre 'Antigravity' detectada!")
         os.system('antigravity &')
