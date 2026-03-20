@@ -39,7 +39,8 @@ def print_help():
     print("  'firefox'      Obre el navegador Firefox.")
     print("  'google'       Obre el navegador Google Chrome.")
     print("  'visual/studio/code' Obre Visual Studio Code.")
-  print("  'antigravity'  Obre l'aplicació Antigravity.")
+    print("  'antigravity'  Obre l'aplicació Antigravity.")
+    print("  'adeu'         Finalitza l'execució del programa.")
     print("  'suspèn'       Suspèn l'ordinador.")
     print("  'apaga'        Apaga l'ordinador.")
     print("  'hora'         Diu l'hora actual.")
@@ -99,8 +100,15 @@ def record_audio(server_url, fs=16000, chunk_duration=5, prompt=None):
                             print(f"\n[Escoltat]: {partial_text}")
                             text_lower = partial_text.lower()
                             
+                            # Detecció de la paraula clau "adeu" per finalitzar
+                            if "adeu" in text_lower:
+                                print(">>> Paraula clau 'Adeu' detectada! Finalitzant...")
+                                os.system('echovoice "Fins aviat!"')
+                                stop_event.set()
+                                break
+                            
                             # Detecció de la paraula clau "Hola"
-                            if "hola" in text_lower:
+                            elif "hola" in text_lower:
                                 print(">>> Paraula clau 'Hola' detectada!")
                                 waiting_for_command = True
                                 
@@ -135,7 +143,10 @@ def record_audio(server_url, fs=16000, chunk_duration=5, prompt=None):
                         print(f"[Final]: {partial_text}")
                         text_lower = partial_text.lower()
                         
-                        if "hola" in text_lower:
+                        if "adeu" in text_lower:
+                            print(">>> Paraula clau 'Adeu' detectada! Finalitzant...")
+                            os.system('echovoice "Fins aviat!"')
+                        elif "hola" in text_lower:
                             if not voice_commands.process_command(text_lower):
                                 os.system('echovoice "Hola, amb què puc ajudar?"')
                         elif waiting_for_command:

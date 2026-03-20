@@ -4,6 +4,20 @@ import subprocess
 import sys
 
 
+def _launch_background(command):
+    """Executa una aplicacio grafica en segon pla sense embrutar la terminal."""
+    try:
+        subprocess.Popen(
+            command,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return True
+    except OSError as error:
+        print(f">>> Error executant {' '.join(command)}: {error}")
+        return False
+
+
 def _start_matrix_vm(vm_name="vu01"):
     """Arrenca una VM de VirtualBox amb validacions i missatges d'error clars."""
     if shutil.which("VBoxManage") is None:
@@ -52,36 +66,48 @@ def process_command(text_lower):
     """
     if "terminal" in text_lower:
         print(">>> Ordre 'obra terminal' detectada!")
-        os.system('gnome-terminal &')
-        os.system('echovoice "Obrint terminal."')
+        if _launch_background(["gnome-terminal"]):
+            os.system('echovoice "Obrint terminal."')
+            return True
+        os.system('echovoice "No he pogut obrir la terminal."')
         return True
     elif "virtualbox" in text_lower:
         print(">>> Ordre 'VirtualBox' detectada!")
-        os.system('virtualbox &')
-        os.system('echovoice "Obrint VirtualBox."')
+        if _launch_background(["virtualbox"]):
+            os.system('echovoice "Obrint VirtualBox."')
+            return True
+        os.system('echovoice "No he pogut obrir VirtualBox."')
         return True
     elif "matrix" in text_lower:
         print(">>> Ordre 'Matrix' detectada!")
         return _start_matrix_vm("vu01")
     elif "firefox" in text_lower:
         print(">>> Ordre 'Firefox' detectada!")
-        os.system('firefox &')
-        os.system('echovoice "Obrint Firefox."')
+        if _launch_background(["firefox"]):
+            os.system('echovoice "Obrint Firefox."')
+            return True
+        os.system('echovoice "No he pogut obrir Firefox."')
         return True
     elif "visual" in text_lower or "studio" in text_lower or "code" in text_lower:
         print(">>> Ordre 'Visual Studio Code' detectada!")
-        os.system('code &')
-        os.system('echovoice "Obrint Visual Studio Code."')
+        if _launch_background(["code"]):
+            os.system('echovoice "Obrint Visual Studio Code."')
+            return True
+        os.system('echovoice "No he pogut obrir Visual Studio Code."')
         return True
     elif "antigravity" in text_lower:
         print(">>> Ordre 'Antigravity' detectada!")
-        os.system('antigravity &')
-        os.system('echovoice "Obrint Antigravity."')
+        if _launch_background(["antigravity"]):
+            os.system('echovoice "Obrint Antigravity."')
+            return True
+        os.system('echovoice "No he pogut obrir Antigravity."')
         return True
     elif "google" in text_lower:
         print(">>> Ordre 'Chrome' detectada!")
-        os.system('google-chrome &')
-        os.system('echovoice "Obrint Chrome."')
+        if _launch_background(["google-chrome"]):
+            os.system('echovoice "Obrint Chrome."')
+            return True
+        os.system('echovoice "No he pogut obrir Chrome."')
         return True
     elif "hora" in text_lower:
         print(">>> Ordre 'hora' detectada!")
