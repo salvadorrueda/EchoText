@@ -1,5 +1,49 @@
 import os
+import shutil
+import subprocess
 import sys
+
+
+def _start_matrix_vm(vm_name="vu01"):
+    """Arrenca una VM de VirtualBox amb validacions i missatges d'error clars."""
+    if shutil.which("VBoxManage") is None:
+        print(">>> Error: VBoxManage no disponible.")
+        os.system('echovoice "No trobo VirtualBox instal.lat."')
+        return True
+
+    list_result = subprocess.run(
+        ["VBoxManage", "list", "vms"],
+        capture_output=True,
+        text=True,
+    )
+    if list_result.returncode != 0:
+        print(">>> Error consultant les VMs de VirtualBox:", list_result.stderr.strip())
+        os.system('echovoice "No puc consultar les maquines virtuals."')
+        return True
+
+    if f'"{vm_name}"' not in list_result.stdout:
+        print(f">>> Error: VM '{vm_name}' no registrada.")
+        os.system('echovoice "No trobo la maquina virtual v zero u."')
+        return True
+
+    start_result = subprocess.run(
+        ["VBoxManage", "startvm", vm_name, "--type", "gui"],
+        capture_output=True,
+        text=True,
+    )
+    if start_result.returncode == 0:
+        print(f">>> VM '{vm_name}' arrencada correctament.")
+        os.system('echovoice "Arrencant la maquina virtual v zero u."')
+        return True
+
+    stderr = (start_result.stderr or "").lower()
+    if "already" in stderr and "running" in stderr:
+        print(f">>> La VM '{vm_name}' ja estava en execucio.")
+        os.system('echovoice "La maquina virtual ja esta en execucio."')
+    else:
+        print(f">>> Error arrencant la VM '{vm_name}':", start_result.stderr.strip())
+        os.system('echovoice "No he pogut arrencar la maquina virtual."')
+    return True
 
 def process_command(text_lower):
     """
@@ -11,6 +55,14 @@ def process_command(text_lower):
         os.system('gnome-terminal &')
         os.system('echovoice "Obrint terminal."')
         return True
+    elif "virtualbox" in text_lower:
+        print(">>> Ordre 'VirtualBox' detectada!")
+        os.system('virtualbox &')
+        os.system('echovoice "Obrint VirtualBox."')
+        return True
+    elif "matrix" in text_lower:
+        print(">>> Ordre 'Matrix' detectada!")
+        return _start_matrix_vm("vu01")
     elif "firefox" in text_lower:
         print(">>> Ordre 'Firefox' detectada!")
         os.system('firefox &')

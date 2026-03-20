@@ -34,6 +34,8 @@ def print_help():
     print("  --prompt PROMPT (Opcional) Text inicial per guiar la transcripció.")
     print("\nOrdres de veu (després de dir 'Hola'):")
     print("  'terminal'     Obre una nova finestra de terminal.")
+    print("  'virtualbox'   Obre l'aplicació VirtualBox.")
+    print("  'matrix'       Arrenca la màquina virtual vu01.")
     print("  'firefox'      Obre el navegador Firefox.")
     print("  'google'       Obre el navegador Google Chrome.")
     print("  'antigravity'  Obre l'aplicació Antigravity.")

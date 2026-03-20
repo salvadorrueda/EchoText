@@ -1,0 +1,14 @@
+services:
+  echotext-server:
+    image: echotext-server
+    container_name: echotext-server-persistent
+    ports:
+      - "5000:5000"
+    volumes:
+      - whisper-models:/root/.cache/whisper
+    gpus: all
+
+volumes:
+  whisper-models:
+    external: true
+    name: whisper-models
