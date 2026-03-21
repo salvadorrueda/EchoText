@@ -78,6 +78,7 @@ docker run -p 5000:5000 echotext-server
 ### 3. Execució amb GPU (NVIDIA)
 Si tens una GPU NVIDIA i vols aprofitar l'acceleració per hardware dins de Docker, necessites tenir instal·lat el [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
 
+
 Per defecte, el `Dockerfile` actual usa una imatge "slim" basada en CPU. Per usar GPU:
 1. Canvia la base del `Dockerfile` a una amb CUDA (ex: `nvidia/cuda:11.8.0-base-ubuntu22.04`).
 2. Executa el container amb el flag `--gpus`:
