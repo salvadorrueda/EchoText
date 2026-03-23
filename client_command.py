@@ -19,6 +19,16 @@ import pyperclip
 import webbrowser
 from lib import voice_commands
 
+# Vocabulari de paraules clau reconegudes (paraula de despertar + ordres)
+COMMAND_KEYWORDS = [
+    "hola", "adeu",
+    "terminal", "virtualbox", "matrix",
+    "firefox", "google", "visual", "studio", "code",
+    "antigravity", "hora", "dia", "suspèn", "suspen", "apaga",
+]
+COMMAND_PROMPT = ", ".join(COMMAND_KEYWORDS)
+
+
 def print_help():
     """Mostra la informació d'ajuda del programa."""
     print("EchoText Client Command - Ajuda")
@@ -99,6 +109,11 @@ def run_mute_menu():
 
 def record_audio(server_url, fs=16000, chunk_duration=5, prompt=None):
     """Enregistra àudio i envia fragments al servidor cada 5 segons."""
+    # Si no s'ha especificat cap prompt personalitzat, usar el vocabulari d'ordres
+    # perquè Whisper només reconegui les paraules clau rellevants.
+    if prompt is None:
+        prompt = COMMAND_PROMPT
+
     print("\n--- Enregistrament amb ordres de veu ---")
     print("Paraula clau: 'Hola'")
     print("Prem 'ENTER' per començar a escoltar...")
