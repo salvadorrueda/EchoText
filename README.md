@@ -61,6 +61,34 @@ python3 client_example.py --prompt "Kiru, Kiruna, Kenzo"
 python3 client_command.py --prompt "Kiru, Kenzo"
 ```
 
+### 5. Client amb ordres de veu i mode silenciós (`client_command.py`)
+
+Aquest client permet dos modes:
+
+- **Mode veu** (per defecte): escolta àudio, detecta la paraula clau `hola` i després executa ordres.
+- **Mode silenciós** (`-m` o `--mute`): mostra un menú numerat d'ordres i les executa sense reconeixement de veu.
+
+**Exemples:**
+```bash
+python3 client_command.py
+python3 client_command.py -m
+python3 client_command.py --mute
+```
+
+En mode `mute`, el menú inclou opcions com:
+- terminal
+- virtualbox
+- matrix
+- firefox
+- google
+- visual studio code
+- antigravity
+- hora
+- dia
+- suspèn
+- apaga
+- adeu (sortir)
+
 ## 🐳 Docker
 
 També pots executar el servidor d'API utilitzant **Docker**. Això és útil si no vols instal·lar dependències localment o per desplegar el servidor en altres màquines.

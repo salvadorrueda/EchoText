@@ -31,6 +31,7 @@ def print_help():
     print("  IP_SERVIDOR    (Opcional) IP o hostname del servidor (defecte: localhost).")
     print("\nOpcions:")
     print("  -h, --help     Mostra aquesta ajuda.")
+    print("  -m, --mute     Mostra un menú d'ordres i executa sense reconeixement de veu.")
     print("  --prompt PROMPT (Opcional) Text inicial per guiar la transcripció.")
     print("\nOrdres de veu (després de dir 'Hola'):")
     print("  'terminal'     Obre una nova finestra de terminal.")
@@ -46,6 +47,55 @@ def print_help():
     print("  'hora'         Diu l'hora actual.")
     print("  'dia'          Diu la data d'avui.")
     print("="*30)
+
+def run_mute_menu():
+    """Mostra un menú d'ordres i executa l'opció seleccionada."""
+    options = [
+        ("terminal", "Obre una nova finestra de terminal"),
+        ("virtualbox", "Obre l'aplicació VirtualBox"),
+        ("matrix", "Arrenca la màquina virtual vu01"),
+        ("firefox", "Obre el navegador Firefox"),
+        ("google", "Obre Google Chrome"),
+        ("visual studio code", "Obre Visual Studio Code"),
+        ("antigravity", "Obre l'aplicació Antigravity"),
+        ("hora", "Diu l'hora actual"),
+        ("dia", "Diu la data d'avui"),
+        ("suspen", "Suspèn l'ordinador"),
+        ("apaga", "Apaga l'ordinador"),
+        ("adeu", "Sortir del menú"),
+    ]
+
+    print("\n--- Mode mute activat ---")
+    print("Selecciona una opció per número.")
+
+    while True:
+        print("\nOpcions disponibles:")
+        for idx, (_, description) in enumerate(options, start=1):
+            print(f"  {idx}. {description}")
+
+        choice = input("\nOpció (número o text, 0 per sortir): ").strip().lower()
+
+        if choice in {"0", "q", "quit", "sortir", "exit", "adeu"}:
+            print("Sortint del mode mute...")
+            break
+
+        command_text = None
+        if choice.isdigit():
+            selected_index = int(choice) - 1
+            if 0 <= selected_index < len(options):
+                command_text = options[selected_index][0]
+            else:
+                print("Opció no vàlida. Torna-ho a provar.")
+                continue
+        else:
+            command_text = choice
+
+        if command_text in {"adeu", "sortir", "exit"}:
+            print("Sortint del mode mute...")
+            break
+
+        if not voice_commands.process_command(command_text):
+            print("No s'ha reconegut cap ordre per aquesta opció.")
 
 def record_audio(server_url, fs=16000, chunk_duration=5, prompt=None):
     """Enregistra àudio i envia fragments al servidor cada 5 segons."""
@@ -229,26 +279,44 @@ def open_web_speech_api(url):
     webbrowser.open('file://' + html_path)
 
 if __name__ == "__main__":
-    # Check for help flag
-    if "--help" in sys.argv or "-h" in sys.argv:
-        print_help()
+    args = sys.argv[1:]
+
+    # Parse options
+    mute_mode = False
+    prompt = None
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+
+        if arg in {"--help", "-h"}:
+            print_help()
+            sys.exit(0)
+        elif arg in {"--mute", "-m"}:
+            mute_mode = True
+            args.pop(i)
+            continue
+        elif arg == "--prompt":
+            if i + 1 >= len(args):
+                print("Error: --prompt requereix un valor.")
+                sys.exit(1)
+            prompt = args[i + 1]
+            args.pop(i)
+            args.pop(i)
+            continue
+
+        i += 1
+
+    if mute_mode:
+        run_mute_menu()
         sys.exit(0)
 
-    # Parse prompt argument
-    prompt = None
-    if "--prompt" in sys.argv:
-        idx = sys.argv.index("--prompt")
-        if len(sys.argv) > idx + 1:
-            prompt = sys.argv[idx + 1]
-            sys.argv.pop(idx)
-            sys.argv.pop(idx)
-
     server = "localhost"
-    if len(sys.argv) > 2:
-        server = sys.argv[2]
-    elif len(sys.argv) == 2 and not os.path.exists(sys.argv[1]):
+    if len(args) > 1:
+        server = args[1]
+    elif len(args) == 1 and not os.path.exists(args[0]):
         # Si només hi ha un paràmetre i no és un fitxer, assumim que és la IP del servidor
-        server = sys.argv[1]
+        server = args[0]
         
     if server.startswith("http://") or server.startswith("https://"):
          url = server
@@ -262,8 +330,8 @@ if __name__ == "__main__":
     else:
          url = f"http://{server}:5000/transcribe"
 
-    if len(sys.argv) >= 2 and os.path.exists(sys.argv[1]):
-        audio_file = sys.argv[1]
+    if len(args) >= 1 and os.path.exists(args[0]):
+        audio_file = args[0]
         transcribe_file(audio_file, url, prompt=prompt)
     else:
         # Si no hi ha fitxer, enregistrem en fragments
