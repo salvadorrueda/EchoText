@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+#!/usr/bin/env python3
 import sys
 import os
 
@@ -7,17 +8,9 @@ from lib.venv_activator import activate_venv
 if __name__ == "__main__":
     activate_venv(__file__)
 
-# Importacions que requereixen el venv
-import requests
-import threading
-import queue
-import sounddevice as sd
-import numpy as np
-import scipy.io.wavfile as wav
-import tempfile
 import pyperclip
 import webbrowser
-from lib import voice_commands
+from lib import voice_commands, audio_recorder, server_client
 
 # Vocabulari de paraules clau reconegudes (paraula de despertar + ordres)
 COMMAND_KEYWORDS = [
@@ -29,7 +22,7 @@ COMMAND_KEYWORDS = [
 COMMAND_PROMPT = ", ".join(COMMAND_KEYWORDS)
 
 
-def print_help():
+def _print_help():
     """Mostra la informació d'ajuda del programa."""
     print("EchoText Client Command - Ajuda")
     print("="*30)
@@ -58,7 +51,7 @@ def print_help():
     print("  'dia'          Diu la data d'avui.")
     print("="*30)
 
-def run_mute_menu():
+def _run_mute_menu():
     """Mostra un menú d'ordres i executa l'opció seleccionada."""
     options = [
         ("terminal", "Obre una nova finestra de terminal"),
@@ -107,194 +100,66 @@ def run_mute_menu():
         if not voice_commands.process_command(command_text):
             print("No s'ha reconegut cap ordre per aquesta opció.")
 
-def record_audio(server_url, fs=16000, chunk_duration=5, prompt=None):
-    """Enregistra àudio i envia fragments al servidor cada 5 segons."""
-    # Si no s'ha especificat cap prompt personalitzat, usar el vocabulari d'ordres
-    # perquè Whisper només reconegui les paraules clau rellevants.
+def _record_audio(server_url, fs=16000, chunk_duration=5, prompt=None):
+    """Enregistra àudio en fragments i processa ordres de veu en temps quasi-real."""
     if prompt is None:
         prompt = COMMAND_PROMPT
 
     print("\n--- Enregistrament amb ordres de veu ---")
-    print("Paraula clau: 'Hola'")
+    print("Paraula clau d'activació: 'Hola'  |  Per sortir: 'Adeu'")
     print("Prem 'ENTER' per començar a escoltar...")
     input()
     print(f"Escoltant... Transcripció cada {chunk_duration}s. Prem 'ENTER' per aturar.")
 
-    q = queue.Queue()
-    stop_event = threading.Event()
-    
-    def callback(indata, frames, time, status):
-        if status:
-            print(status, file=sys.stderr)
-        q.put(indata.copy())
-
-    def input_listener():
-        input()
-        stop_event.set()
-
-    input_thread = threading.Thread(target=input_listener)
-    input_thread.start()
-
-    audio_buffer = []
     full_transcription = []
-    waiting_for_command = False
-    
-    try:
-        with sd.InputStream(samplerate=fs, channels=1, callback=callback):
-            while not stop_event.is_set():
-                try:
-                    data = q.get(timeout=0.1)
-                    audio_buffer.append(data)
-                except queue.Empty:
-                    continue
+    waiting_for_command = [False]
 
-                total_samples = sum(len(c) for c in audio_buffer)
-                
-                if total_samples >= fs * chunk_duration:
-                    print(".", end="", flush=True)
-                    
-                    np_audio = np.concatenate(audio_buffer, axis=0)
-                    audio_buffer = []
-                    
-                    # Enviar fragment al servidor
-                    with tempfile.NamedTemporaryFile(delete=True, suffix=".wav") as temp:
-                        wav.write(temp.name, fs, np_audio)
-                        partial_text = transcribe_file(temp.name, server_url, print_header=False, prompt=prompt)
-                        
-                        if partial_text:
-                            print(f"\n[Escoltat]: {partial_text}")
-                            text_lower = partial_text.lower()
-                            
-                            # Detecció de la paraula clau "adeu" per finalitzar
-                            if "adeu" in text_lower:
-                                print(">>> Paraula clau 'Adeu' detectada! Finalitzant...")
-                                os.system('echovoice "Fins aviat!"')
-                                stop_event.set()
-                                break
-                            
-                            # Detecció de la paraula clau "Hola"
-                            elif "hola" in text_lower:
-                                print(">>> Paraula clau 'Hola' detectada!")
-                                waiting_for_command = True
-                                
-                                # Comprovar si l'ordre està en el mateix fragment
-                                if voice_commands.process_command(text_lower):
-                                    waiting_for_command = False
-                                else:
-                                    os.system('echovoice "Hola, amb què puc ajudar?"')
-                            
-                            # Si ja havíem dit Hola, busquem l'ordre
-                            elif waiting_for_command:
-                                if voice_commands.process_command(text_lower):
-                                    waiting_for_command = False
+    def on_chunk(np_audio, is_final):
+        label = "[Final]" if is_final else "[Escoltat]"
+        print(".", end="", flush=True)
 
-                            full_transcription.append(partial_text)
-                            
-                            # Actualitzar portapapers amb el que portem
-                            current_text = " ".join(full_transcription)
-                            try:
-                                pyperclip.copy(current_text)
-                            except:
-                                pass
+        partial_text = server_client.transcribe_chunk(np_audio, fs, server_url, prompt=prompt)
+        if not partial_text:
+            return False
 
-            # Processar l'últim fragment
-            if audio_buffer:
-                print("\nProcessant l'últim fragment...")
-                np_audio = np.concatenate(audio_buffer, axis=0)
-                with tempfile.NamedTemporaryFile(delete=True, suffix=".wav") as temp:
-                    wav.write(temp.name, fs, np_audio)
-                    partial_text = transcribe_file(temp.name, server_url, print_header=False, prompt=prompt)
-                    if partial_text:
-                        print(f"[Final]: {partial_text}")
-                        text_lower = partial_text.lower()
-                        
-                        if "adeu" in text_lower:
-                            print(">>> Paraula clau 'Adeu' detectada! Finalitzant...")
-                            os.system('echovoice "Fins aviat!"')
-                        elif "hola" in text_lower:
-                            if not voice_commands.process_command(text_lower):
-                                os.system('echovoice "Hola, amb què puc ajudar?"')
-                        elif waiting_for_command:
-                             voice_commands.process_command(text_lower)
-                            
-                        full_transcription.append(partial_text)
+        print(f"\n{label}: {partial_text}")
+        text_lower = partial_text.lower()
 
-    except Exception as e:
-        print(f"\nError durant l'enregistrament: {e}")
-    finally:
-        if input_thread.is_alive():
-            print("Prem ENTER per finalitzar si s'ha quedat esperant.")
+        if "adeu" in text_lower:
+            print(">>> Paraula clau 'Adeu' detectada! Finalitzant...")
+            os.system('echovoice "Fins aviat!"')
+            return True  # Atura l'enregistrament
 
-    return " ".join(full_transcription)
+        if "hola" in text_lower:
+            print(">>> Paraula clau 'Hola' detectada!")
+            waiting_for_command[0] = True
+            if not voice_commands.process_command(text_lower):
+                os.system('echovoice "Hola, amb què puc ajudar?"')
+            else:
+                waiting_for_command[0] = False
+        elif waiting_for_command[0]:
+            if voice_commands.process_command(text_lower):
+                waiting_for_command[0] = False
 
-
-def transcribe_file(filepath, server_url="http://localhost:5000/transcribe", print_header=True, prompt=None):
-    if not os.path.exists(filepath):
-        print(f"Error: L'arxiu '{filepath}' no existeix.")
-        return None
-
-    if print_header:
-        print(f"Enviant '{filepath}' a {server_url}...")
-    
-    try:
-        with open(filepath, 'rb') as f:
-            files = {'file': f}
-            data = {'language': 'ca'} # Pots canviar l'idioma aquí
-            if prompt:
-                data['prompt'] = prompt
-            response = requests.post(server_url, files=files, data=data)
-            
-        if response.status_code == 200:
-            result = response.json()
-            text = result.get('text', '').strip()
-            
-            if print_header:
-                print("\n--- Transcripció ---")
-                print(text if text else 'No text returned')
-                print("--------------------\n")
-                
-                if text:
-                    try:
-                        pyperclip.copy(text)
-                        print("✓ Text copiat al porta-retalls!")
-                    except Exception as cp_err:
-                        print(f"Avís: No s'ha pogut copiar al porta-retalls: {cp_err}")
-            
-            return text
-        else:
-            print(f"Error del servidor ({response.status_code}):")
-            print(response.text)
-            return None
-            
-    except requests.exceptions.ConnectionError:
-        print(f"Error: No s'ha pogut connectar amb el servidor a {server_url}")
-        return None
-    except Exception as e:
-        print(f"Error inesperat: {e}")
-        return None
-
-def check_server_available(server_url):
-    """Comprova si el servidor està disponible abans de començar."""
-    try:
-        # Peticions GET per veure si respon el port.
-        requests.get(server_url, timeout=2)
-        return True
-    except requests.exceptions.ConnectionError:
+        full_transcription.append(partial_text)
+        try:
+            pyperclip.copy(" ".join(full_transcription))
+        except Exception:
+            pass
         return False
-    except Exception:
-        # Altres errors com MethodNotAllowed o timeout els donem per bons
-        return True
 
-def open_web_speech_api(url):
-    """Obre l'alternativa Web Speech API al navegador."""
+    audio_recorder.record_chunks(on_chunk, fs=fs, chunk_duration=chunk_duration)
+    return " ".join(full_transcription)
+if __name__ == "__main__":
+    args = sys.argv[1:]
+def _open_web_speech_api(url):
+    """Obre l'alternativa Web Speech API al navegador si el servidor no està disponible."""
     base_dir = os.path.dirname(os.path.abspath(__file__))
     html_path = os.path.join(base_dir, "Alternatives", "web_speech_API.html")
     print(f"\n[!] No s'ha pogut connectar al servidor a {url}")
-    print(f"[!] Obrint l'alternativa Web Speech API al navegador...\n")
-    webbrowser.open('file://' + html_path)
+    print("[!] Obrint l'alternativa Web Speech API al navegador...\n")
+    webbrowser.open("file://" + html_path)
 
-if __name__ == "__main__":
-    args = sys.argv[1:]
 
     # Parse options
     mute_mode = False
@@ -305,7 +170,7 @@ if __name__ == "__main__":
         arg = args[i]
 
         if arg in {"--help", "-h"}:
-            print_help()
+            _print_help()
             sys.exit(0)
         elif arg in {"--mute", "-m"}:
             mute_mode = True
@@ -323,38 +188,26 @@ if __name__ == "__main__":
         i += 1
 
     if mute_mode:
-        run_mute_menu()
+        _run_mute_menu()
         sys.exit(0)
 
     server = "localhost"
     if len(args) > 1:
         server = args[1]
     elif len(args) == 1 and not os.path.exists(args[0]):
-        # Si només hi ha un paràmetre i no és un fitxer, assumim que és la IP del servidor
         server = args[0]
-        
-    if server.startswith("http://") or server.startswith("https://"):
-         url = server
-         if not url.endswith("/transcribe"):
-             if url.endswith("/"):
-                 url += "transcribe"
-             else:
-                 url += "/transcribe"
-    elif ":" in server:
-         url = f"http://{server}/transcribe"
-    else:
-         url = f"http://{server}:5000/transcribe"
+
+    url = server_client.build_server_url(server)
 
     if len(args) >= 1 and os.path.exists(args[0]):
         audio_file = args[0]
-        transcribe_file(audio_file, url, prompt=prompt)
+        server_client.transcribe_file(audio_file, url, prompt=prompt, print_result=True)
     else:
-        # Si no hi ha fitxer, enregistrem en fragments
-        if not check_server_available(url):
-            open_web_speech_api(url)
+        if not server_client.check_server_available(url):
+            _open_web_speech_api(url)
             sys.exit(1)
             
-        final_text = record_audio(url, prompt=prompt)
+        final_text = _record_audio(url, prompt=prompt)
         
         if final_text:
             print("\n" + "="*30)

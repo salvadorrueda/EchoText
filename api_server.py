@@ -1,26 +1,21 @@
 #!/usr/bin/env python3
+#!/usr/bin/env python3
 import os
 import sys
 
 from lib.venv_activator import activate_venv
 
 if __name__ == "__main__" or __name__ == "api_server":
-    # Només ho executem si és el punt d'entrada per evitar bucles infinits
-    # i abans d'importar altres mòduls que podrien faltar al sistema
     if "api_server.py" in sys.argv[0] or "./api_server.py" in sys.argv[0]:
         activate_venv(__file__)
 
-import threading
-import time
-import whisper
-import torch
 from flask import Flask, request, jsonify
 import tempfile
 from waitress import serve
 import markdown
+from lib import model_loader
 
 app = Flask(__name__)
-
 @app.after_request
 def after_request(response):
     response.headers.add('Access-Control-Allow-Origin', '*')
@@ -29,42 +24,9 @@ def after_request(response):
     return response
 
 # Variable global per emmagatzemar el model
+# El model es carrega de manera síncrona en arrencar; els workers de Waitress
+# el troben ja disponible al model_container compartit.
 model_container = {}
-
-def load_model():
-    """Carrega el model Whisper en memòria."""
-    print("Carregant el model Whisper (turbo)...")
-    start_load = time.time()
-    try:
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            print("Utilitzant CUDA (GPU).")
-        else:
-            print("Utilitzant CPU.")
-            
-        model = whisper.load_model("turbo")
-        model_container['model'] = model
-        end_load = time.time()
-        print(f"Model Whisper (turbo) carregat correctament en {end_load - start_load:.2f}s.")
-        
-    except RuntimeError as e:
-        if "out of memory" in str(e):
-            print("ALERTA: Memòria insuficient per al model 'turbo'. Intentant amb 'small'...")
-            try:
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
-                model = whisper.load_model("small")
-                model_container['model'] = model
-                print("Model Whisper (small) carregat correctament.")
-            except Exception as e2:
-                print(f"Error fatal carregant model alternatiu: {e2}")
-                model_container['error'] = str(e2)
-        else:
-            print(f"Error carregant el model: {e}")
-            model_container['error'] = str(e)
-    except Exception as e:
-        print(f"Error inesperat carregant el model: {e}")
-        model_container['error'] = str(e)
 
 @app.route('/', methods=['GET'])
 def index():
@@ -193,10 +155,7 @@ def transcribe_audio():
                 os.remove(temp_path)
 
 if __name__ == '__main__':
-    # Carregar model en un fil o abans d'iniciar el servidor
-    # Ho fem abans d'iniciar el servidor per simplificar, tot i que bloquejarà l'inici fins que carregui
-    load_model()
-    
-    # Iniciar servidor Waitress accessible des de la xarxa local
+    model_loader.load_whisper_model(model_container)
+
     print("Iniciant servidor API amb Waitress a 0.0.0.0:5000...")
     serve(app, host='0.0.0.0', port=5000)
